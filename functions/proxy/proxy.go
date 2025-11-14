@@ -1,23 +1,14 @@
-package functions
+package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"net/http"
 
-	"github.com/Evan-Lab/cloud-native/lib/go/discord"
-
-	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/bwmarrin/discordgo"
 )
 
-func init() {
-	functions.HTTP("DiscordProxy", DiscordProxy)
-}
-
-func ping() (*discordgo.InteractionResponse, error) {
-	slog.Info("Received Ping interaction")
+func ping(ctx context.Context) (*discordgo.InteractionResponse, error) {
+	slog.InfoContext(ctx, "Received Ping interaction")
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponsePong,
 	}, nil
@@ -35,7 +26,7 @@ func cmdProxy(ctx context.Context, interaction discordgo.Interaction) (*discordg
 	data := interaction.ApplicationCommandData()
 	handler, ok := cmds[data.Name]
 	if !ok {
-		slog.Warn("No handler for command", "name", data.Name)
+		slog.WarnContext(ctx, "No handler for command", "name", data.Name)
 		return &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -45,44 +36,4 @@ func cmdProxy(ctx context.Context, interaction discordgo.Interaction) (*discordg
 	}
 
 	return handler(ctx, interaction, data)
-}
-
-// HelloWorld writes "Hello, World!" to the HTTP response.
-func DiscordProxy(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	req, err := discord.ParseRequest(w, r)
-	if err != nil {
-		slog.Warn("Failed to parse request", "error", err)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-
-	slog.Info("Handling interaction", "type", req.Type, "interaction", req)
-	var resp *discordgo.InteractionResponse
-	switch req.Type {
-	case discordgo.InteractionApplicationCommand:
-		resp, err = cmdProxy(ctx, req)
-	// case discordgo.InteractionApplicationCommandAutocomplete:
-	// 	panic("Not implemented")
-	case discordgo.InteractionPing:
-		resp, err = ping()
-	default:
-		slog.Warn("Unknown interaction type", "type", req.Type)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		slog.Error("Failed to handle interaction", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	slog.Info("Sending response", "response", resp)
-	discord.SetHeaders(w.Header())
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		slog.Error("Failed to encode response", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
 }

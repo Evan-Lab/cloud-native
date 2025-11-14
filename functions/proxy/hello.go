@@ -1,4 +1,4 @@
-package functions
+package proxy
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func helloCmd(ctx context.Context, interaction discordgo.Interaction, data disco
 			name = s
 		}
 	}
-	slog.Info("Received hello command", "name", name)
+	slog.InfoContext(ctx, "Received hello command", "name", name)
 
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,

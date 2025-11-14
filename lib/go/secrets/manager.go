@@ -36,7 +36,7 @@ func Secret(ctx context.Context, secret string) ([]byte, error) {
 
 	s, err := client.AccessSecretVersion(ctx, req)
 	if err != nil {
-		slog.Error("Failed to access secret version", "error", err, "secret-name", secretName)
+		slog.ErrorContext(ctx, "Failed to access secret version", "error", err, "secret-name", secretName)
 		return nil, err
 	}
 

@@ -23,7 +23,7 @@ func init() {
 	pubKey = utils.Must(hex.DecodeString(string(keyHex)))
 
 	if token == "" || pubKey == nil {
-		slog.Error("DISCORD_BOT_TOKEN or DISCORD_PUBLIC_KEY not set in environment")
+		slog.ErrorContext(ctx, "DISCORD_BOT_TOKEN or DISCORD_PUBLIC_KEY not set in environment")
 		os.Exit(2)
 	}
 }
