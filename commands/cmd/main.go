@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/lib/go/discord"
 	"log/slog"
 	"os"
+
+	"github.com/Evan-Lab/cloud-native/lib/go/discord"
 
 	"github.com/bwmarrin/discordgo"
 )

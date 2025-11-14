@@ -1,4 +1,4 @@
-module github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/commands
+module github.com/Evan-Lab/cloud-native/commands
 
 go 1.24.9
 

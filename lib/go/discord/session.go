@@ -7,8 +7,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/lib/go/secrets"
-	"github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/lib/go/utils"
+	"github.com/Evan-Lab/cloud-native/lib/go/secrets"
+	"github.com/Evan-Lab/cloud-native/lib/go/utils"
+
 	"github.com/bwmarrin/discordgo"
 )
 

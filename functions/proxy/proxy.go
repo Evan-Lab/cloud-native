@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/lib/go/discord"
+	"github.com/Evan-Lab/cloud-native/lib/go/discord"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/bwmarrin/discordgo"

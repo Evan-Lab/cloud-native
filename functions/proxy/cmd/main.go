@@ -5,7 +5,7 @@ import (
 	"os"
 
 	// Blank-import the function package so the init() runs
-	_ "github.com/EpitechPGE45-2025/G-CLO-910-PAR-9-1-cloudnative-13/functions"
+	_ "github.com/Evan-Lab/cloud-native/functions"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 )
