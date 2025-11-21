@@ -1,14 +1,20 @@
+
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// Configuration Discord OAuth2
+// Configuration Discord OAuth2 - Implicit Grant
 const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || 'YOUR_DISCORD_CLIENT_ID'
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.origin}/auth/callback`
-const DISCORD_OAUTH_URL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20email`
+
+// 🎯 CHANGEMENT IMPORTANT: response_type=token (au lieu de code)
+// Cela active l'Implicit Grant Flow de Discord
+const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?response_type=token&client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=identify%20email`
 
 const isHovering = ref(false)
 
 const handleDiscordLogin = () => {
+  // Sauvegarder l'état pour la redirection post-auth
+  sessionStorage.setItem('auth_redirect', window.location.pathname)
   window.location.href = DISCORD_OAUTH_URL
 }
 </script>
@@ -39,7 +45,7 @@ const handleDiscordLogin = () => {
         </div>
 
         <!-- Bouton Discord -->
-        <button 
+        <button
           @click="handleDiscordLogin"
           @mouseenter="isHovering = true"
           @mouseleave="isHovering = false"
@@ -61,7 +67,7 @@ const handleDiscordLogin = () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p class="info-text">
-            En vous connectant, vous acceptez de partager votre identité Discord et votre adresse email
+            Authentification sécurisée avec Discord
           </p>
         </div>
 
@@ -83,6 +89,7 @@ const handleDiscordLogin = () => {
 </template>
 
 <style scoped>
+/* ... tous les styles existants restent identiques ... */
 .login-container {
   min-height: 100vh;
   position: relative;
@@ -100,7 +107,7 @@ const handleDiscordLogin = () => {
   right: 0;
   bottom: 0;
   background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+  radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
