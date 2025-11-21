@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import ColorPicker from '@/components/ColorPicker.vue'
 import PixelGrid from '@/components/PixelGrid.vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const user = ref<any>(null)
@@ -32,22 +32,26 @@ const handleLogout = () => {
           <div class="flex items-center gap-4">
             <div class="logo-container">
               <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                />
               </svg>
             </div>
             <div>
               <h1 class="app-title">Pixel Place</h1>
-              <p class="app-subtitle">Créez votre art pixel par pixel</p>
             </div>
           </div>
           <div class="header-right">
             <div v-if="user" class="user-info">
-              <img 
-                v-if="user.avatar" 
-                :src="`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`" 
+              <img
+                v-if="user.avatar"
+                :src="`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`"
                 :alt="user.username"
                 class="user-avatar"
-              >
+              />
               <div v-else class="user-avatar-default">
                 {{ user.username?.charAt(0).toUpperCase() }}
               </div>
@@ -55,7 +59,12 @@ const handleLogout = () => {
             </div>
             <button @click="handleLogout" class="logout-button">
               <svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
               </svg>
               <span>Déconnexion</span>
             </button>
@@ -90,8 +99,9 @@ const handleLogout = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+  background:
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -169,7 +179,8 @@ const handleLogout = () => {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
   }
   50% {
@@ -357,4 +368,3 @@ const handleLogout = () => {
   background: rgba(255, 255, 255, 0.3);
 }
 </style>
-

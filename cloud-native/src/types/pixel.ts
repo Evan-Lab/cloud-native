@@ -36,7 +36,9 @@ export interface GridState {
   pixels: Map<string, PixelColor>
 }
 
-export const GRID_WIDTH = 100
-export const GRID_HEIGHT = 100
-export const PIXEL_SIZE = 10
+export const GRID_WIDTH = 475
+export const GRID_HEIGHT = 200
+export const PIXEL_SIZE = 20
 export const DEFAULT_COLOR = PixelColor.WHITE
+
+export type Tool = 'brush' | 'eraser' | 'eyedropper'
