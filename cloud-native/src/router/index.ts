@@ -5,6 +5,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import LoginPage from '@/views/LoginPage.vue'
 import HomePage from '@/views/HomePage.vue'
 import AuthCallback from '@/views/AuthCallback.vue'
+import DebugAuth from '@/views/DebugAuth.vue'
 
 // Définition des routes
 const routes: RouteRecordRaw[] = [
@@ -28,6 +29,14 @@ const routes: RouteRecordRaw[] = [
     path: '/auth/callback',
     name: 'auth-callback',
     component: AuthCallback,
+    meta: {
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/debug',
+    name: 'debug',
+    component: DebugAuth,
     meta: {
       requiresAuth: false
     }
