@@ -14,4 +14,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      // Proxy pour contourner CORS de Discord (optionnel)
+      '/api/discord': {
+        target: 'https://discord.com/api',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/discord/, ''),
+        secure: true,
+        headers: {
+          'User-Agent': 'PixelPlace/1.0',
+        },
+      },
+    },
+  },
 })
