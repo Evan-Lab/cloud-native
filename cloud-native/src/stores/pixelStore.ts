@@ -1,10 +1,11 @@
-import { DEFAULT_COLOR, GRID_HEIGHT, GRID_WIDTH, PixelColor } from '@/types/pixel'
+import { DEFAULT_COLOR, GRID_HEIGHT, GRID_WIDTH, PixelColor, type Tool } from '@/types/pixel'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 export const usePixelStore = defineStore('pixel', () => {
   const pixels = ref<Map<string, PixelColor>>(new Map())
   const selectedColor = ref<PixelColor>(PixelColor.RED)
+  const currentTool = ref<Tool>('brush')
   const getPixelKey = (x: number, y: number): string => `${x},${y}`
 
   const gridWidth = computed(() => GRID_WIDTH)
@@ -30,8 +31,16 @@ export const usePixelStore = defineStore('pixel', () => {
     selectedColor.value = color
   }
 
+  const setTool = (tool: Tool) => {
+    currentTool.value = tool
+  }
+
   const placePixel = (x: number, y: number) => {
-    setPixel(x, y, selectedColor.value)
+    if (currentTool.value === 'eraser') {
+      setPixel(x, y, DEFAULT_COLOR)
+    } else {
+      setPixel(x, y, selectedColor.value)
+    }
   }
 
   const clearGrid = () => {
@@ -59,12 +68,14 @@ export const usePixelStore = defineStore('pixel', () => {
   return {
     pixels,
     selectedColor,
+    currentTool,
     gridWidth,
     gridHeight,
     totalPixelsPlaced,
     getPixelColor,
     setPixel,
     setSelectedColor,
+    setTool,
     placePixel,
     clearGrid,
     exportGrid,

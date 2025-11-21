@@ -1,29 +1,42 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
 import { usePixelStore } from '@/stores/pixelStore'
-import { DEFAULT_COLOR, PIXEL_SIZE } from '@/types/pixel'
+import { DEFAULT_COLOR, PIXEL_SIZE, PixelColor, type Tool } from '@/types/pixel'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const pixelStore = usePixelStore()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 
-const zoom = ref(1)
-const minZoom = 0.5
-const maxZoom = 4
-const panX = ref(0)
-const panY = ref(0)
-const isPanning = ref(false)
-const lastPanX = ref(0)
-const lastPanY = ref(0)
-
 const hoverX = ref<number | null>(null)
 const hoverY = ref<number | null>(null)
+const isDrawing = ref(false)
 
 const canvasWidth = pixelStore.gridWidth * PIXEL_SIZE
 const canvasHeight = pixelStore.gridHeight * PIXEL_SIZE
 
-const displayWidth = computed(() => canvasWidth * zoom.value)
-const displayHeight = computed(() => canvasHeight * zoom.value)
+const primaryColors = [
+  PixelColor.RED,
+  PixelColor.BLUE,
+  PixelColor.YELLOW,
+  PixelColor.GREEN,
+  PixelColor.PURPLE,
+  PixelColor.PINK,
+  PixelColor.WHITE,
+  PixelColor.BLACK,
+]
+
+const canvasCursor = computed(() => {
+  switch (pixelStore.currentTool) {
+    case 'brush':
+      return 'cursor-crosshair'
+    case 'eraser':
+      return 'cursor-not-allowed'
+    case 'eyedropper':
+      return 'cursor-copy'
+    default:
+      return 'cursor-crosshair'
+  }
+})
 
 const drawGrid = () => {
   if (!canvasRef.value) return
@@ -60,7 +73,7 @@ const drawGrid = () => {
   }
 
   if (hoverX.value !== null && hoverY.value !== null) {
-    ctx.fillStyle = pixelStore.selectedColor + '80' // 50% opacity
+    ctx.fillStyle = pixelStore.selectedColor + '80'
     ctx.fillRect(hoverX.value * PIXEL_SIZE, hoverY.value * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE)
 
     ctx.strokeStyle = pixelStore.selectedColor
@@ -89,13 +102,23 @@ const getGridCoordinates = (event: MouseEvent): { x: number; y: number } | null 
 }
 
 const handleCanvasClick = (event: MouseEvent) => {
-  if (isPanning.value) return
-
   const coords = getGridCoordinates(event)
   if (!coords) return
 
-  pixelStore.placePixel(coords.x, coords.y)
+  if (pixelStore.currentTool === 'eyedropper') {
+    const color = pixelStore.getPixelColor(coords.x, coords.y)
+    if (color !== DEFAULT_COLOR) {
+      pixelStore.setSelectedColor(color)
+    }
+  } else {
+    pixelStore.placePixel(coords.x, coords.y)
+  }
   drawGrid()
+}
+
+const handleMouseDown = (event: MouseEvent) => {
+  isDrawing.value = true
+  handleCanvasClick(event)
 }
 
 const handleMouseMove = (event: MouseEvent) => {
@@ -103,6 +126,9 @@ const handleMouseMove = (event: MouseEvent) => {
   if (coords) {
     hoverX.value = coords.x
     hoverY.value = coords.y
+    if (isDrawing.value && pixelStore.currentTool !== 'eyedropper') {
+      pixelStore.placePixel(coords.x, coords.y)
+    }
   } else {
     hoverX.value = null
     hoverY.value = null
@@ -110,216 +136,167 @@ const handleMouseMove = (event: MouseEvent) => {
   drawGrid()
 }
 
+const handleMouseUp = () => {
+  isDrawing.value = false
+}
+
 const handleMouseLeave = () => {
   hoverX.value = null
   hoverY.value = null
+  isDrawing.value = false
   drawGrid()
 }
 
-const handleWheel = (event: WheelEvent) => {
-  event.preventDefault()
-  const delta = event.deltaY > 0 ? -0.1 : 0.1
-  const newZoom = Math.max(minZoom, Math.min(maxZoom, zoom.value + delta))
-  zoom.value = newZoom
+const selectTool = (tool: Tool) => {
+  pixelStore.setTool(tool)
 }
 
-const zoomIn = () => {
-  zoom.value = Math.min(maxZoom, zoom.value + 0.2)
-}
-
-const zoomOut = () => {
-  zoom.value = Math.max(minZoom, zoom.value - 0.2)
-}
-
-const resetZoom = () => {
-  zoom.value = 1
-  panX.value = 0
-  panY.value = 0
-}
-
-const handleMouseDown = (event: MouseEvent) => {
-  if (event.button === 1 || event.shiftKey) {
-    event.preventDefault()
-    isPanning.value = true
-    lastPanX.value = event.clientX
-    lastPanY.value = event.clientY
-  }
-}
-
-const handleMouseMoveGlobal = (event: MouseEvent) => {
-  if (isPanning.value) {
-    const dx = event.clientX - lastPanX.value
-    const dy = event.clientY - lastPanY.value
-    panX.value += dx
-    panY.value += dy
-    lastPanX.value = event.clientX
-    lastPanY.value = event.clientY
-  }
-}
-
-const handleMouseUp = () => {
-  isPanning.value = false
+const selectColor = (color: PixelColor) => {
+  pixelStore.setSelectedColor(color)
 }
 
 onMounted(() => {
   drawGrid()
-  window.addEventListener('mousemove', handleMouseMoveGlobal)
-  window.addEventListener('mouseup', handleMouseUp)
 })
 
-watch([() => pixelStore.pixels.size, zoom, hoverX, hoverY], () => {
+watch([() => pixelStore.pixels.size, hoverX, hoverY], () => {
   drawGrid()
 })
 </script>
 
 <template>
-  <div class="flex flex-col gap-8 h-full">
-    <div class="flex items-center justify-between flex-wrap gap-6">
-      <div class="flex items-center gap-6">
-        <div class="glass-card px-6 py-4 text-center">
-          <div class="text-sm text-gray-400 mb-2">Pixels placés</div>
-          <div class="text-2xl font-bold pixel-gradient">{{ pixelStore.totalPixelsPlaced }}</div>
-        </div>
-        <div v-if="hoverX !== null && hoverY !== null" class="glass-card px-6 py-4 text-center">
-          <div class="text-sm text-gray-400 mb-2">Position</div>
-          <div class="text-lg font-mono text-white">{{ hoverX }}, {{ hoverY }}</div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-3 glass-card px-5 py-3">
-        <button @click="zoomOut" class="zoom-btn" :disabled="zoom <= minZoom" title="Zoom arrière">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
-            />
-          </svg>
-        </button>
-        <div
-          class="px-4 py-2 bg-gray-800 rounded text-sm font-mono text-white min-w-[70px] text-center"
-        >
-          {{ Math.round(zoom * 100) }}%
-        </div>
-        <button @click="zoomIn" class="zoom-btn" :disabled="zoom >= maxZoom" title="Zoom avant">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
-            />
-          </svg>
-        </button>
-        <button @click="resetZoom" class="zoom-btn" title="Réinitialiser">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div ref="containerRef" class="flex-1 canvas-wrapper">
-      <div class="canvas-inner">
-        <canvas
-          ref="canvasRef"
-          :width="canvasWidth"
-          :height="canvasHeight"
-          :style="{
-            width: displayWidth + 'px',
-            height: displayHeight + 'px',
-            transform: `translate(${panX}px, ${panY}px)`,
-          }"
-          @click="handleCanvasClick"
-          @mousemove="handleMouseMove"
-          @mouseleave="handleMouseLeave"
-          @mousedown="handleMouseDown"
-          @wheel="handleWheel"
-          class="canvas-pixel"
-          :class="{ 'cursor-grab': isPanning, 'cursor-crosshair': !isPanning }"
-        />
-      </div>
-    </div>
-
-    <div class="flex gap-4 flex-wrap items-center">
-      <button
-        @click="pixelStore.clearGrid"
-        class="action-btn bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700"
+  <div class="relative w-full h-full overflow-hidden">
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-100 pointer-events-auto">
+      <div
+        class="flex items-center gap-3 bg-gray-300 my-4 backdrop-blur-xl border border-white/15 rounded-xl p-4"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
-        </svg>
-        Effacer tout
-      </button>
-      <div class="glass-card px-6 py-4 text-sm text-gray-400 text-center leading-relaxed">
-        💡 Astuce: Shift+Clic ou molette pour zoomer/déplacer
+        <button
+          @click="selectTool('brush')"
+          :class="[
+            'p-2.5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center bg-black',
+            pixelStore.currentTool === 'brush'
+              ? 'border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.3)]'
+              : 'border-transparent text-gray-400 hover:border-white/30 hover:text-white hover:scale-105',
+          ]"
+          title="Pinceau (dessiner)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
+          </svg>
+        </button>
+
+        <button
+          @click="selectTool('eraser')"
+          :class="[
+            'p-2.5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center bg-black',
+            pixelStore.currentTool === 'eraser'
+              ? 'border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.3)]'
+              : 'border-transparent text-gray-400 hover:border-white/30 hover:text-white hover:scale-105',
+          ]"
+          title="Gomme (effacer)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        <button
+          @click="selectTool('eyedropper')"
+          :class="[
+            'p-2.5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center bg-black',
+            pixelStore.currentTool === 'eyedropper'
+              ? 'border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.3)]'
+              : 'border-transparent text-gray-400 hover:border-white/30 hover:text-white hover:scale-105',
+          ]"
+          title="Pipette (copier couleur)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+            />
+          </svg>
+        </button>
+
+        <div class="w-px h-7 bg-white/15 mx-1"></div>
+
+        <div class="flex gap-2">
+          <button
+            v-for="color in primaryColors"
+            :key="color"
+            @click="selectColor(color)"
+            :class="[
+              'w-8 h-8 rounded-lg border-2 transition-all duration-200 relative overflow-hidden',
+              pixelStore.selectedColor === color
+                ? 'border-white/80 scale-110 shadow-[0_0_0_3px_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.4)]'
+                : 'border-transparent hover:border-white/30 hover:scale-105 hover:shadow-lg',
+            ]"
+            :style="{ backgroundColor: color }"
+            :title="color"
+          >
+            <svg
+              v-if="pixelStore.selectedColor === color"
+              class="w-5 h-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="w-px h-7 bg-white/15 mx-1"></div>
+
+        <button
+          @click="pixelStore.clearGrid"
+          class="p-2.5 rounded-lg border-2 border-transparent bg-black text-gray-400 transition-all duration-200 flex items-center justify-center hover:border-red-500/60 hover:text-white hover:scale-105"
+          title="Effacer tout"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </button>
       </div>
+    </div>
+
+    <div
+      ref="containerRef"
+      class="absolute top-0 left-0 w-full h-full bg-slate-900/50 overflow-hidden flex items-center justify-center"
+    >
+      <canvas
+        ref="canvasRef"
+        :width="canvasWidth"
+        :height="canvasHeight"
+        @mousedown="handleMouseDown"
+        @mouseup="handleMouseUp"
+        @mousemove="handleMouseMove"
+        @mouseleave="handleMouseLeave"
+        :class="[
+          'canvas-pixel max-w-full max-h-full object-contain rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-transform duration-100',
+          canvasCursor,
+        ]"
+      />
     </div>
   </div>
 </template>
-
-<style scoped>
-.canvas-wrapper {
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-  position: relative;
-}
-
-.canvas-inner {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.canvas-pixel {
-  border-radius: 0.5rem;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  transition: transform 0.1s ease;
-}
-
-/* Custom scrollbar for canvas area */
-.canvas-inner::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-.canvas-inner::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
-  border-radius: 6px;
-}
-
-.canvas-inner::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.4);
-  border-radius: 6px;
-  border: 2px solid rgba(15, 23, 42, 0.5);
-}
-
-.canvas-inner::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
-}
-
-.canvas-inner::-webkit-scrollbar-corner {
-  background: rgba(15, 23, 42, 0.5);
-}
-</style>
