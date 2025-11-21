@@ -6,45 +6,83 @@ const router = useRouter()
 const status = ref<'loading' | 'success' | 'error'>('loading')
 const errorMessage = ref('')
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
-
 onMounted(async () => {
   try {
-    // Récupérer le code d'autorisation depuis l'URL
-    const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
-    
-    if (!code) {
-      throw new Error('Code d\'autorisation manquant')
+    console.log('🔄 Récupération du token depuis les fragments d\'URL...')
+
+    // 🎯 IMPORTANT: Avec l'Implicit Grant, les données sont dans le fragment (#)
+    // Exemple: .../#access_token=xxx&token_type=Bearer&expires_in=604800&scope=identify
+    const hash = window.location.hash.substring(1) // Enlever le '#'
+    const params = new URLSearchParams(hash)
+
+    const accessToken = params.get('access_token')
+    const tokenType = params.get('token_type')
+    const expiresIn = params.get('expires_in')
+    const scope = params.get('scope')
+
+    if (!accessToken) {
+      throw new Error('Token d\'accès manquant dans la réponse Discord')
     }
 
-    // Échanger le code contre un token
-    const response = await fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ code })
+    console.log('✅ Token reçu:', {
+      tokenType,
+      expiresIn: `${expiresIn}s (${parseInt(expiresIn || '0') / 3600}h)`,
+      scope
     })
 
-    if (!response.ok) {
-      throw new Error('Échec de l\'authentification')
+    // Stocker le token
+    localStorage.setItem('discord_token', accessToken)
+    localStorage.setItem('discord_token_type', tokenType || 'Bearer')
+    localStorage.setItem('discord_token_expiry', String(Date.now() + (parseInt(expiresIn || '0') * 1000)))
+    localStorage.setItem('discord_token_scope', scope || '')
+
+    console.log('📡 Récupération des informations utilisateur...')
+    console.log('💡 Via proxy Vite: /api/discord/oauth2/@me -> https://discord.com/api/oauth2/@me')
+
+    // ⚠️ IMPORTANT: Discord ne supporte PAS CORS depuis le navigateur
+    // Solution: Utiliser le proxy Vite configuré dans vite.config.ts
+    // /api/discord/* -> https://discord.com/api/*
+    const userResponse = await fetch('/api/discord/oauth2/@me', {
+      headers: {
+        Authorization: `${tokenType} ${accessToken}`,
+      },
+    })
+
+    if (!userResponse.ok) {
+      const errorData = await userResponse.json().catch(() => ({}))
+      throw new Error(errorData.message || 'Erreur lors de la récupération du profil')
     }
 
-    const data = await response.json()
+    const oauthData = await userResponse.json()
+    // L'endpoint OAuth2 retourne les données dans oauthData.user
+    const userData = oauthData.user
 
-    // Stocker le token et les informations utilisateur
-    localStorage.setItem('discord_token', data.access_token)
-    localStorage.setItem('discord_user', JSON.stringify(data.user))
+    console.log('✅ Profil utilisateur récupéré:', userData.username)
+
+    // Stocker les informations utilisateur
+    localStorage.setItem('discord_user', JSON.stringify(userData))
+
+    // Émettre un événement pour notifier l'application
+    window.dispatchEvent(new CustomEvent('discord-auth-success', {
+      detail: { user: userData }
+    }))
 
     status.value = 'success'
 
+    // Récupérer la redirection sauvegardée
+    const redirectPath = sessionStorage.getItem('auth_redirect') || '/'
+    sessionStorage.removeItem('auth_redirect')
+
+    // Nettoyer l'URL (enlever le hash)
+    window.history.replaceState({}, document.title, window.location.pathname)
+
     // Rediriger vers la page d'accueil après 1 seconde
     setTimeout(() => {
-      router.push({ name: 'home' })
+      router.push(redirectPath)
     }, 1000)
+
   } catch (error) {
-    console.error('Erreur lors de l\'authentification:', error)
+    console.error('❌ Erreur lors de l\'authentification:', error)
     status.value = 'error'
     errorMessage.value = error instanceof Error ? error.message : 'Une erreur est survenue'
 
@@ -69,7 +107,7 @@ onMounted(async () => {
             <div class="spinner"></div>
           </div>
           <h2 class="status-title">Authentification en cours...</h2>
-          <p class="status-message">Veuillez patienter pendant que nous vérifions vos informations</p>
+          <p class="status-message">Récupération de votre profil Discord...</p>
         </div>
 
         <!-- Success -->
@@ -80,7 +118,7 @@ onMounted(async () => {
             </svg>
           </div>
           <h2 class="status-title success-text">Authentification réussie !</h2>
-          <p class="status-message">Vous allez être redirigé vers l'application...</p>
+          <p class="status-message">Connexion établie avec succès</p>
         </div>
 
         <!-- Error -->
@@ -97,8 +135,8 @@ onMounted(async () => {
 
         <!-- Progress bar -->
         <div class="progress-bar">
-          <div 
-            class="progress-fill" 
+          <div
+            class="progress-fill"
             :class="{
               'progress-loading': status === 'loading',
               'progress-success': status === 'success',
@@ -129,7 +167,7 @@ onMounted(async () => {
   right: 0;
   bottom: 0;
   background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+  radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -180,7 +218,6 @@ onMounted(async () => {
   margin-bottom: 2rem;
 }
 
-/* Spinner */
 .spinner-container {
   display: flex;
   justify-content: center;
@@ -202,7 +239,6 @@ onMounted(async () => {
   }
 }
 
-/* Success Icon */
 .success-icon {
   width: 4rem;
   height: 4rem;
@@ -233,7 +269,6 @@ onMounted(async () => {
   }
 }
 
-/* Error Icon */
 .error-icon {
   width: 4rem;
   height: 4rem;
@@ -265,7 +300,6 @@ onMounted(async () => {
   }
 }
 
-/* Text */
 .status-title {
   font-size: 1.75rem;
   font-weight: 700;
@@ -287,13 +321,19 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
+.status-info {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
 .status-redirect {
   font-size: 0.875rem;
   color: #64748b;
   margin-top: 0.5rem;
 }
 
-/* Progress Bar */
 .progress-bar {
   width: 100%;
   height: 4px;
@@ -358,4 +398,3 @@ onMounted(async () => {
   }
 }
 </style>
-
