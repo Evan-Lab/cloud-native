@@ -2,9 +2,11 @@ package proxy
 
 import "os"
 
+var projectID string
+
 func init() {
-	projectID = os.Getenv("GCP_PROJECT_ID")
+	projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
-		panic("GCP_PROJECT_ID not set in environment")
+		panic("GOOGLE_CLOUD_PROJECT not set in environment")
 	}
 }

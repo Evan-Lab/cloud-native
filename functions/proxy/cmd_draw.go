@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	projectID string
 	topicID   string
 )
 

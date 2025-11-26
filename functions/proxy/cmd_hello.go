@@ -15,7 +15,11 @@ func init() {
 
 func helloCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
 	ctx, span := tracer.Start(ctx, "discord.command.hello")
-	defer span.End()
+	defer func() {
+		slog.Info("before span.End")
+		span.End()
+		slog.Info("after span.End")
+	}()
 
 	name := "World"
 	if opt := data.GetOption("name"); opt != nil {
@@ -24,7 +28,7 @@ func helloCmd(ctx context.Context, interaction discordgo.Interaction, data disco
 		}
 	}
 	span.SetAttributes(attribute.String("options.name", name))
-	slog.DebugContext(ctx, "Received hello command", "name", name)
+	slog.InfoContext(ctx, "Received hello command", "name", name)
 
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
