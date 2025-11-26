@@ -9,11 +9,13 @@ import (
 
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/bwmarrin/discordgo"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
-	topicID   string
+	topicID string
 )
 
 func init() {
@@ -74,9 +76,13 @@ func drawCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 	}
 	slog.DebugContext(ctx, "Draw payload", "body", string(body))
 
-	result := publisher.Publish(ctx, &pubsub.Message{
+	msg := &pubsub.Message{
 		Data: body,
-	})
+		// Initialize the Attributes map if it doesn't exist
+		Attributes: make(map[string]string),
+	}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(msg.Attributes))
+	result := publisher.Publish(ctx, msg)
 
 	_, err = result.Get(ctx)
 	if err != nil {
