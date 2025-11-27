@@ -1,0 +1,9 @@
+{
+  "name": "web-proxy",
+  "version": "1.0.0",
+  "description": "Proxy to authenticate users and publish web events to Pub/Sub.",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0"
+  }
+}
