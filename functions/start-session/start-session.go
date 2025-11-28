@@ -33,6 +33,7 @@ type CanvasInput struct {
 
 type Canvas struct {
 	AdminID   string    `json:"adminId"`
+	CanvasID  string    `json:"canvasId"`
 	Name      string    `json:"name"`
 	Width     int       `json:"width"`
 	Height    int       `json:"height"`
@@ -46,6 +47,7 @@ func init() {
 }
 
 func StartSession(ctx context.Context, e cloudevents.Event) error {
+
 	var payload MessagePublishedData
 	if err := e.DataAs(&payload); err != nil {
 		slog.Error("Invalid CloudEvent payload", "error", err)
@@ -54,13 +56,13 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 
 	msg := payload.Message
 	parentCtx := otel.GetTextMapPropagator().Extract(ctx, propagation.MapCarrier(msg.Attributes))
-	tracer := otel.Tracer("CreateCanvas")
-	ctx, span := tracer.Start(parentCtx, "create-canvas")
+	tracer := otel.Tracer("StartSession")
+	ctx, span := tracer.Start(parentCtx, "start-session")
 	defer span.End()
 
 	slog.Info("Message received", "data", string(msg.Data), "attributes", msg.Attributes)
 
-	var input CanvasInput
+	var input Canvas
 	if err := json.Unmarshal(msg.Data, &input); err != nil {
 		slog.Error("Invalid JSON", "raw", string(msg.Data))
 		return nil
@@ -73,29 +75,48 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 	}
 	defer fs.Close()
 
-	canvas := Canvas{
+	status := "START"
+
+	if input.CanvasID != "" {
+
+		doc := fs.Collection("canvases").Doc(input.CanvasID)
+
+		_, err := doc.Set(ctx, map[string]interface{}{
+			"Status": status,
+		}, firestore.MergeAll)
+
+		if err != nil {
+			slog.Error("Failed to update canvas", "canvasId", input.CanvasID, "error", err)
+			return err
+		}
+
+		slog.Info("Canvas updated", "canvasId", input.CanvasID)
+		return nil
+	}
+
+	if input.StartDate.IsZero() {
+		slog.Error("startDate must be provided when creating a canvas")
+		return nil
+	}
+
+	newCanvas := Canvas{
 		AdminID:   input.AdminID,
 		Name:      input.Name,
 		Width:     input.Width,
 		Height:    input.Height,
-		Status:    "START",
-		StartDate: time.Now(),
-		EndDate:   time.Time{},
+		Status:    status,
+		StartDate: input.StartDate,
+		EndDate:   input.EndDate,
 	}
 
 	docRef := fs.Collection("canvases").NewDoc()
-	if _, err := docRef.Set(ctx, canvas); err != nil {
+	newCanvas.CanvasID = docRef.ID
+
+	if _, err := docRef.Set(ctx, newCanvas); err != nil {
 		slog.Error("Failed to create canvas", "error", err)
 		return err
 	}
-	canvasID := docRef.ID
 
-	slog.Info("Canvas created", "canvasID", canvasID)
-
-	_, err = fs.Collection("canvases").Doc(canvasID).Set(ctx, canvas)
-	if err != nil {
-		slog.Error("Failed to create pixel document", "error", err)
-		return err
-	}
+	slog.Info("Canvas created", "canvasId", newCanvas.CanvasID)
 	return nil
 }
