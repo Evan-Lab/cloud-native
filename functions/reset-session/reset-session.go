@@ -56,7 +56,7 @@ func ResetSession(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
-	fs, err := firestore.NewClientWithDatabase(ctx, projectID, "dev-rplace-database")
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, databaseName)
 	if err != nil {
 		slog.Error("Firestore init failed", "error", err)
 		return err
