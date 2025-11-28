@@ -3,6 +3,7 @@ module github.com/Evan-Lab/cloud-native/lib/go
 go 1.24.9
 
 require (
+	cloud.google.com/go/compute/metadata v0.8.0
 	cloud.google.com/go/secretmanager v1.16.0
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/joho/godotenv v1.5.1
@@ -11,7 +12,6 @@ require (
 require (
 	cloud.google.com/go/auth v0.16.4 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/compute/metadata v0.8.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
