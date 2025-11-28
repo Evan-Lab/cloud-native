@@ -95,9 +95,26 @@ const handleSessionAction = async (req, res, userId, action) => {
         return res.status(400).send('Invalid session action.');
     }
 
+    let eventData = {};
+
+    if (action === 'start') {
+        const { name, width, height, endDate } = req.body;
+
+        if (!name || !width || !height || !endDate) {
+            return res.status(400).send('Missing session start parameters.');
+        }
+        eventData = { adminId: userId, name, width, height, status: action.toUpperCase(), startDate: Date.now(), endDate };
+    } else {
+        const { canvasId } = req.body;
+        if (!canvasId) {
+            return res.status(400).send('Missing canvasId for session action.');
+        }
+        eventData = { adminId: userId, canvasId, status: action.toUpperCase() };
+    }
+
     // Publication de l'événement dans le topic des sessions
     await pubsub.topic(TOPIC_SESSION_EVENTS).publishMessage({
-        json: { userId, action: action.toUpperCase(), timestamp: Date.now() }
+        json: eventData
     });
 
     res.status(200).json({ ok: true, message: `Session action ${action} queued.` });
