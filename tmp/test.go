@@ -1,4 +1,4 @@
-package draw
+package draw-test
 
 import (
 	"context"
@@ -6,43 +6,32 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 )
 
 type PixelInput struct {
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
 	Color    string `json:"color"`
-	AuthorID string `json:"authorId"`
-	CanvasID string `json:"canvasId"`
+	AuthorID string `json:"author_id"`
+	CanvasID string `json:"canvas_id"`
 }
 
 type Pixel struct {
-	AuthorID  string    `json:"authorId"`
+	AuthorID  string    `json:"author_id"`
 	Color     string    `json:"color"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	UpdatedAt time.Time `json:"updated_at"`
 	X         int       `json:"x"`
 	Y         int       `json:"y"`
 }
 
-type MessagePublishedData struct {
-	Message PubSubMessage `json:"message"`
-}
-
-type PubSubMessage struct {
-	Data       []byte            `json:"data"`
-	Attributes map[string]string `json:"attributes"`
-}
-
 func init() {
-	functions.CloudEvent("DrawPixel", DrawPixel)
+	functions.HTTP("DrawPixel", DrawPixel)
 }
 
 type CanvasSize struct {
@@ -52,6 +41,7 @@ type CanvasSize struct {
 
 func GetCanvasSize(ctx context.Context, collection string, canvasID string, database string, projectId string) (CanvasSize, error) {
 	var size CanvasSize
+
 	if canvasID == "" {
 		return size, errors.New("canvasID is required")
 	}
@@ -160,62 +150,73 @@ func SaveLastPixelTime(ctx context.Context, collection string, authorId string, 
 	return nil
 }
 
-func DrawPixel(ctx context.Context, e cloudevents.Event) error {
-	var payload MessagePublishedData
-	if err := e.DataAs(&payload); err != nil {
-		slog.Error("Invalid CloudEvent payload", "error", err)
-		return nil
-	}
-
-	msg := payload.Message
-
-	parentCtx := otel.GetTextMapPropagator().Extract(ctx, propagation.MapCarrier(msg.Attributes))
-	tracer := otel.Tracer("DrawPixel")
-	ctx, span := tracer.Start(parentCtx, "event")
-	defer span.End()
-
-	slog.Info("Message received", "data", string(msg.Data), "attributes", msg.Attributes)
+func DrawPixel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
 	var input PixelInput
-	if err := json.Unmarshal(msg.Data, &input); err != nil {
-		slog.Error("Invalid JSON", "raw", string(msg.Data))
-		return nil
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		slog.Error("Failed to decode JSON", "error", err)
+		return
 	}
 
-	if input.CanvasID == "" || input.Color == "" || input.AuthorID == "" {
-		slog.Error("Missing required fields", "input", input)
-		return nil
+	if input.CanvasID == "" {
+		http.Error(w, "canvas_id is required", http.StatusBadRequest)
+		return
+	}
+	if input.Color == "" {
+		http.Error(w, "color is required", http.StatusBadRequest)
+		return
+	}
+	if input.AuthorID == "" {
+		http.Error(w, "authorId is required", http.StatusBadRequest)
+		return
 	}
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
-		slog.Error("Missing GOOGLE_CLOUD_PROJECT")
-		return nil
+		http.Error(w, "GOOGLE_CLOUD_PROJECT missing", http.StatusInternalServerError)
+		return
 	}
 
-	t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID)
-	if err == nil {
-		if elapsed := time.Since(t); elapsed < 35*time.Second {
-			slog.Warn("Cooldown not finished", "remaining", 35*time.Second-elapsed)
-			return nil
+	t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", "serverless-epitech-dev-476110")
+	if err != nil {
+		slog.Warn("No last pixel timestamp found (first pixel allowed)", "error", err)
+	} else {
+		slog.Info("Last pixel updated at", "time", t)
+
+		elapsed := time.Since(t)
+
+		if elapsed < 35*time.Second {
+			remaining := 35*time.Second - elapsed
+
+			http.Error(w,
+				fmt.Sprintf("Cooldown not finished. Wait %d more seconds", int(remaining.Seconds())),
+				http.StatusTooManyRequests,
+			)
+			return
 		}
+		slog.Info("Cooldown OK: user can draw", "elapsed_seconds", elapsed.Seconds())
 	}
 
 	size, err := GetCanvasSize(ctx, "canvases", input.CanvasID, "dev-rplace-database", projectID)
 	if err != nil {
-		slog.Error("Canvas not found", "canvas_id", input.CanvasID)
-		return nil
+		http.Error(w, "Failed to get canvas size", http.StatusInternalServerError)
+		return
 	}
 
-	if input.X < 0 || input.Y < 0 || input.X >= size.Width || input.Y >= size.Height {
-		slog.Error("Pixel out of bounds", "input", input)
-		return nil
+	fmt.Printf("Canvas %s : %dx%d\n", input.CanvasID, size.Width, size.Height)
+
+	if input.X > size.Height || input.Y > size.Width {
+		http.Error(w, "The pixel position is not in the canvas", http.StatusBadRequest)
+		return
 	}
 
 	fs, err := firestore.NewClientWithDatabase(ctx, projectID, "dev-rplace-database")
 	if err != nil {
-		slog.Error("Firestore init failed", "error", err)
-		return err
+		http.Error(w, "Firestore init failed", http.StatusInternalServerError)
+		slog.Error("Failed Firestore init", "error", err)
+		return
 	}
 	defer fs.Close()
 
@@ -228,6 +229,7 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 	}
 
 	docID := fmt.Sprintf("%d_%d", pixel.X, pixel.Y)
+
 	_, err = fs.Collection("canvases").
 		Doc(input.CanvasID).
 		Collection("pixels").
@@ -235,14 +237,16 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		Set(ctx, pixel)
 
 	if err != nil {
-		slog.Error("Failed to write pixel", "error", err)
-		return err
+		http.Error(w, "Failed to write pixel", http.StatusInternalServerError)
+		slog.Error("Failed to write pixel to Firestore", "error", err)
+		return
 	}
 
-	if err := SaveLastPixelTime(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID, time.Now()); err != nil {
-		slog.Warn("Failed to update rate limit", "error", err)
+	err = SaveLastPixelTime(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID, time.Now())
+	if err != nil {
+		slog.Error("Failed to store last pixel timestamp", "error", err)
 	}
 
-	slog.Info("Pixel written", "canvas_id", input.CanvasID, "x", input.X, "y", input.Y)
-	return nil
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Pixel written"))
 }
