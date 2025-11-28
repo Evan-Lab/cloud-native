@@ -83,7 +83,7 @@ const handleDrawPixel = async (req, res, userId) => {
 
     // Publication de l'événement dans Pub/Sub
     await pubsub.topic(TOPIC_PIXEL_EVENTS).publishMessage({
-        json: { userId, x, y, color, action: 'DRAW', timestamp: Date.now() }
+        json: { x, y, color, userId, timestamp: Date.now() }
     });
 
     res.status(200).json({ ok: true, message: 'Pixel event queued.' });
