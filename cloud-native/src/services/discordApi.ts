@@ -5,7 +5,7 @@
 
 const DISCORD_API_BASE_URL = import.meta.env.DEV
   ? '/api/discord' // Proxy Vite en développement
-  : 'https://rplace-gateway-5uir24en.ew.gateway.dev/web/api/discord' // API Gateway en production
+  : 'https://rplace-gateway4-5uir24en.ew.gateway.dev/web/api/discord' // API Gateway en production
 
 const API_KEY = import.meta.env.VITE_API_KEY
 
