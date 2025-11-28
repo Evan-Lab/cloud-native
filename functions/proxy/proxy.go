@@ -1,23 +1,20 @@
-package functions
+package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"net/http"
 
-	"github.com/Evan-Lab/cloud-native/lib/go/discord"
-
-	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/bwmarrin/discordgo"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func init() {
-	functions.HTTP("DiscordProxy", DiscordProxy)
-}
+func ping(ctx context.Context) (*discordgo.InteractionResponse, error) {
+	ctx, span := tracer.Start(ctx, "ping")
+	defer span.End()
 
-func ping() (*discordgo.InteractionResponse, error) {
-	slog.Info("Received Ping interaction")
+	slog.InfoContext(ctx, "Received Ping interaction")
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponsePong,
 	}, nil
@@ -33,9 +30,17 @@ func RegisterCommand(cmd string, handler CommandHandler) {
 
 func cmdProxy(ctx context.Context, interaction discordgo.Interaction) (*discordgo.InteractionResponse, error) {
 	data := interaction.ApplicationCommandData()
+	ctx, span := tracer.Start(ctx, "command.dispatch",
+		trace.WithAttributes(
+			attribute.String("discord.command.name", data.Name),
+			attribute.String("discord.command.id", data.ID),
+		))
+	defer span.End()
+
 	handler, ok := cmds[data.Name]
 	if !ok {
-		slog.Warn("No handler for command", "name", data.Name)
+		span.SetStatus(codes.Error, "no handler for command")
+		slog.WarnContext(ctx, "No handler for command", "name", data.Name)
 		return &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -44,45 +49,10 @@ func cmdProxy(ctx context.Context, interaction discordgo.Interaction) (*discordg
 		}, nil
 	}
 
-	return handler(ctx, interaction, data)
-}
-
-// HelloWorld writes "Hello, World!" to the HTTP response.
-func DiscordProxy(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	req, err := discord.ParseRequest(w, r)
+	resp, err := handler(ctx, interaction, data)
 	if err != nil {
-		slog.Warn("Failed to parse request", "error", err)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "command handler returned error")
 	}
-
-	slog.Info("Handling interaction", "type", req.Type, "interaction", req)
-	var resp *discordgo.InteractionResponse
-	switch req.Type {
-	case discordgo.InteractionApplicationCommand:
-		resp, err = cmdProxy(ctx, req)
-	// case discordgo.InteractionApplicationCommandAutocomplete:
-	// 	panic("Not implemented")
-	case discordgo.InteractionPing:
-		resp, err = ping()
-	default:
-		slog.Warn("Unknown interaction type", "type", req.Type)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		slog.Error("Failed to handle interaction", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	slog.Info("Sending response", "response", resp)
-	discord.SetHeaders(w.Header())
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		slog.Error("Failed to encode response", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
+	return resp, err
 }
