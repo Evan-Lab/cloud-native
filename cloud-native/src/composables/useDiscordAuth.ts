@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 export interface DiscordUser {
@@ -19,14 +19,12 @@ const isAuthenticated = computed(() => !!user.value && !!token.value)
 export function useDiscordAuth() {
   const router = useRouter()
 
-  // Initialiser depuis localStorage
   const initAuth = () => {
     const storedToken = localStorage.getItem('discord_token')
     const storedTokenType = localStorage.getItem('discord_token_type')
     const storedUser = localStorage.getItem('discord_user')
     const tokenExpiry = localStorage.getItem('discord_token_expiry')
 
-    // Vérifier si le token est expiré
     if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
       console.warn('⚠️ Token expiré, déconnexion...')
       logout()
@@ -38,7 +36,6 @@ export function useDiscordAuth() {
         token.value = storedToken
         tokenType.value = storedTokenType || 'Bearer'
         user.value = JSON.parse(storedUser)
-        console.log('✅ Session restaurée depuis localStorage')
         return true
       } catch (error) {
         console.error('❌ Erreur lors de la restauration de la session:', error)
@@ -50,7 +47,6 @@ export function useDiscordAuth() {
     return false
   }
 
-  // Déconnexion
   const logout = () => {
     user.value = null
     token.value = null
@@ -59,11 +55,9 @@ export function useDiscordAuth() {
     localStorage.removeItem('discord_token_type')
     localStorage.removeItem('discord_token_expiry')
     localStorage.removeItem('discord_user')
-    console.log('👋 Déconnexion effectuée')
     router.push({ name: 'login' })
   }
 
-  // Obtenir les informations utilisateur depuis Discord
   const fetchUserProfile = async (): Promise<DiscordUser> => {
     if (!token.value) {
       throw new Error('Pas de token disponible')
@@ -78,7 +72,6 @@ export function useDiscordAuth() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Token invalide, déconnexion
           logout()
           throw new Error('Token invalide ou expiré')
         }
@@ -88,8 +81,6 @@ export function useDiscordAuth() {
       const userData = await response.json()
       user.value = userData
       localStorage.setItem('discord_user', JSON.stringify(userData))
-
-      console.log('✅ Profil mis à jour:', userData.username)
       return userData
     } catch (error) {
       console.error('❌ Erreur fetchUserProfile:', error)
@@ -97,7 +88,6 @@ export function useDiscordAuth() {
     }
   }
 
-  // Vérifier si le token est toujours valide
   const checkTokenValidity = async (): Promise<boolean> => {
     if (!token.value) return false
 
@@ -121,7 +111,6 @@ export function useDiscordAuth() {
     }
   }
 
-  // Obtenir le temps restant avant expiration (en secondes)
   const getTimeUntilExpiry = (): number => {
     const tokenExpiry = localStorage.getItem('discord_token_expiry')
     if (!tokenExpiry) return 0
@@ -132,7 +121,6 @@ export function useDiscordAuth() {
     return Math.max(0, Math.floor((expiryTime - now) / 1000))
   }
 
-  // Obtenir l'URL de l'avatar
   const getAvatarUrl = (size: number = 128): string | null => {
     if (!user.value || !user.value.avatar) return null
     return `https://cdn.discordapp.com/avatars/${user.value.id}/${user.value.avatar}.png?size=${size}`

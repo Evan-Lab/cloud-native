@@ -1,6 +1,9 @@
+import { drawPixel as apiDrawPixel, ApiError } from '@/services/gatewayApi'
 import { DEFAULT_COLOR, GRID_HEIGHT, GRID_WIDTH, PixelColor, type Tool } from '@/types/pixel'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+
+const CANVAS_ID = 'zGYJpT1GTkWY95li4q0q'
 
 export const usePixelStore = defineStore('pixel', () => {
   const pixels = ref<Map<string, PixelColor>>(new Map())
@@ -35,11 +38,42 @@ export const usePixelStore = defineStore('pixel', () => {
     currentTool.value = tool
   }
 
-  const placePixel = (x: number, y: number) => {
-    if (currentTool.value === 'eraser') {
-      setPixel(x, y, DEFAULT_COLOR)
-    } else {
-      setPixel(x, y, selectedColor.value)
+  const placePixel = async (x: number, y: number) => {
+    const color = currentTool.value === 'eraser' ? DEFAULT_COLOR : selectedColor.value
+
+    setPixel(x, y, color)
+
+    try {
+      await sendPixelToServer(x, y)
+    } catch (error) {
+      console.error('Erreur placement pixel:', error)
+    }
+  }
+
+  const syncPixel = (x: number, y: number, color: string) => {
+    setPixel(x, y, color as PixelColor)
+  }
+
+  const sendPixelToServer = async (x: number, y: number) => {
+    const token = localStorage.getItem('discord_token')
+
+    if (!token) {
+      console.error('Pas de token Discord')
+      throw new Error('Pas de token Discord disponible')
+    }
+
+    const color = currentTool.value === 'eraser' ? DEFAULT_COLOR : selectedColor.value
+
+    try {
+      await apiDrawPixel(x, y, color, token, CANVAS_ID)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        if (error.statusCode === 401) {
+          console.error('Token invalide, déconnexion nécessaire')
+        }
+        throw error
+      }
+      throw error
     }
   }
 
@@ -77,6 +111,8 @@ export const usePixelStore = defineStore('pixel', () => {
     setSelectedColor,
     setTool,
     placePixel,
+    syncPixel,
+    sendPixelToServer,
     clearGrid,
     exportGrid,
     importGrid,

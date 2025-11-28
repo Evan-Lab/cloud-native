@@ -1,20 +1,43 @@
 <script setup lang="ts">
-import ColorPicker from '@/components/ColorPicker.vue'
 import PixelGrid from '@/components/PixelGrid.vue'
-import { onMounted, ref } from 'vue'
+import { usePixelSync } from '@/composables/usePixelSync'
+import { loadCanvas } from '@/services/gatewayApi'
+import { usePixelStore } from '@/stores/pixelStore'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const user = ref<any>(null)
+const pixelStore = usePixelStore()
+const { isConnected, connect, disconnect } = usePixelSync()
+const isLoading = ref(true)
 
-onMounted(() => {
+onMounted(async () => {
   const userInfo = localStorage.getItem('discord_user')
   if (userInfo) {
     user.value = JSON.parse(userInfo)
   }
+
+  try {
+    const pixels = await loadCanvas()
+    pixels.forEach(({ x, y, color }) => {
+      pixelStore.syncPixel(x, y, color)
+    })
+
+    connect()
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation:", error)
+  } finally {
+    isLoading.value = false
+  }
+})
+
+onBeforeUnmount(() => {
+  disconnect()
 })
 
 const handleLogout = () => {
+  disconnect()
   localStorage.removeItem('discord_token')
   localStorage.removeItem('discord_user')
   router.push({ name: 'login' })
@@ -42,6 +65,14 @@ const handleLogout = () => {
             </div>
             <div>
               <h1 class="app-title">Pixel Place</h1>
+            </div>
+
+            <div
+              v-if="!isLoading"
+              :class="['connection-indicator', isConnected ? 'connected' : 'disconnected']"
+            >
+              <span class="status-dot"></span>
+              <span class="status-text">{{ isConnected ? 'En ligne' : 'Hors ligne' }}</span>
             </div>
           </div>
           <div class="header-right">
@@ -72,14 +103,8 @@ const handleLogout = () => {
         </div>
       </header>
 
-      <div class="main-layout">
-        <aside class="sidebar">
-          <ColorPicker />
-        </aside>
-
-        <main class="main-content">
-          <PixelGrid />
-        </main>
+      <div class="grid-container">
+        <PixelGrid />
       </div>
     </div>
   </div>
@@ -282,13 +307,12 @@ const handleLogout = () => {
   height: 1rem;
 }
 
-.main-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 1.5rem;
+.grid-container {
   flex: 1;
   min-height: 0;
   animation: fade-in 0.6s ease-out 0.2s both;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes fade-in {
@@ -302,39 +326,63 @@ const handleLogout = () => {
   }
 }
 
-.sidebar {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.5rem;
-  padding: 2rem;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  overflow-y: auto;
-  max-height: calc(100vh - 180px);
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-.main-content {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.5rem;
-  padding: 2rem;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+.connection-indicator.connected {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+.connection-indicator.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.connected .status-dot {
+  background: #22c55e;
+}
+
+.disconnected .status-dot {
+  background: #ef4444;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.status-text {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 @media (max-width: 1024px) {
-  .main-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .sidebar {
-    max-height: 400px;
-  }
-
   .app-title {
     font-size: 2rem;
   }
@@ -348,23 +396,14 @@ const handleLogout = () => {
     width: 100%;
     justify-content: space-between;
   }
-}
 
-.sidebar::-webkit-scrollbar {
-  width: 8px;
-}
+  .connection-indicator {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
 
-.sidebar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  .status-text {
+    font-size: 0.625rem;
+  }
 }
 </style>

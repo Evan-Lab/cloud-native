@@ -25,6 +25,51 @@ const primaryColors = [
   PixelColor.BLACK,
 ]
 
+const colorGroups = [
+  {
+    name: 'Primaires',
+    colors: [
+      PixelColor.RED,
+      PixelColor.BLUE,
+      PixelColor.YELLOW,
+      PixelColor.GREEN,
+      PixelColor.PURPLE,
+      PixelColor.PINK,
+    ],
+  },
+  {
+    name: 'Secondaires',
+    colors: [
+      PixelColor.ORANGE,
+      PixelColor.CYAN,
+      PixelColor.LIME,
+      PixelColor.INDIGO,
+      PixelColor.ROSE,
+      PixelColor.TEAL,
+    ],
+  },
+  {
+    name: 'Neutres',
+    colors: [
+      PixelColor.WHITE,
+      PixelColor.LIGHT_GRAY,
+      PixelColor.GRAY,
+      PixelColor.DARK_GRAY,
+      PixelColor.BLACK,
+    ],
+  },
+  {
+    name: 'Tons Terre',
+    colors: [PixelColor.BROWN, PixelColor.BEIGE, PixelColor.CORAL],
+  },
+]
+
+const showColorPicker = ref(false)
+
+const toggleColorPicker = () => {
+  showColorPicker.value = !showColorPicker.value
+}
+
 const canvasCursor = computed(() => {
   switch (pixelStore.currentTool) {
     case 'brush':
@@ -105,10 +150,13 @@ const handleCanvasClick = (event: MouseEvent) => {
   const coords = getGridCoordinates(event)
   if (!coords) return
 
+  console.log('Clic sur:', coords)
+
   if (pixelStore.currentTool === 'eyedropper') {
     const color = pixelStore.getPixelColor(coords.x, coords.y)
     if (color !== DEFAULT_COLOR) {
       pixelStore.setSelectedColor(color)
+      console.log('Couleur:', color)
     }
   } else {
     pixelStore.placePixel(coords.x, coords.y)
@@ -117,7 +165,6 @@ const handleCanvasClick = (event: MouseEvent) => {
 }
 
 const handleMouseDown = (event: MouseEvent) => {
-  isDrawing.value = true
   handleCanvasClick(event)
 }
 
@@ -126,9 +173,6 @@ const handleMouseMove = (event: MouseEvent) => {
   if (coords) {
     hoverX.value = coords.x
     hoverY.value = coords.y
-    if (isDrawing.value && pixelStore.currentTool !== 'eyedropper') {
-      pixelStore.placePixel(coords.x, coords.y)
-    }
   } else {
     hoverX.value = null
     hoverY.value = null
@@ -264,6 +308,28 @@ watch([() => pixelStore.pixels.size, hoverX, hoverY], () => {
         <div class="w-px h-7 bg-white/15 mx-1"></div>
 
         <button
+          @click="toggleColorPicker"
+          :class="[
+            'p-2.5 rounded-lg border-2 transition-all duration-200 flex items-center justify-center bg-black',
+            showColorPicker
+              ? 'border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+              : 'border-transparent text-gray-400 hover:border-white/30 hover:text-white hover:scale-105',
+          ]"
+          title="Plus de couleurs"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+            />
+          </svg>
+        </button>
+
+        <div class="w-px h-7 bg-white/15 mx-1"></div>
+
+        <button
           @click="pixelStore.clearGrid"
           class="p-2.5 rounded-lg border-2 border-transparent bg-black text-gray-400 transition-all duration-200 flex items-center justify-center hover:border-red-500/60 hover:text-white hover:scale-105"
           title="Effacer tout"
@@ -281,9 +347,64 @@ watch([() => pixelStore.pixels.size, hoverX, hoverY], () => {
     </div>
 
     <div
-      ref="containerRef"
-      class="absolute top-0 left-0 w-full h-full bg-slate-900/50 overflow-hidden flex items-center justify-center"
+      v-if="showColorPicker"
+      class="absolute top-24 left-1/2 -translate-x-1/2 z-100 pointer-events-auto"
     >
+      <div
+        class="bg-gray-800/95 backdrop-blur-xl border border-white/15 rounded-xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)] max-w-md"
+      >
+        <div class="space-y-4">
+          <div v-for="group in colorGroups" :key="group.name" class="space-y-2">
+            <h3 class="text-xs font-semibold text-gray-400 text-center">{{ group.name }}</h3>
+            <div class="grid grid-cols-6 gap-2">
+              <button
+                v-for="color in group.colors"
+                :key="color"
+                @click="selectColor(color)"
+                :class="[
+                  'w-10 h-10 rounded-lg border-2 transition-all duration-200 relative overflow-hidden',
+                  pixelStore.selectedColor === color
+                    ? 'border-white/80 scale-110 shadow-[0_0_0_3px_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.4)]'
+                    : 'border-transparent hover:border-white/30 hover:scale-105 hover:shadow-lg',
+                ]"
+                :style="{ backgroundColor: color }"
+                :title="color"
+              >
+                <svg
+                  v-if="pixelStore.selectedColor === color"
+                  class="w-5 h-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-white/10">
+            <div class="flex items-center justify-center gap-4">
+              <div
+                class="w-16 h-16 rounded-xl border-4 border-white/20 shadow-lg"
+                :style="{ backgroundColor: pixelStore.selectedColor }"
+              ></div>
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Couleur active</div>
+                <div class="text-sm font-mono text-white font-bold">
+                  {{ pixelStore.selectedColor }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div ref="containerRef" class="absolute top-0 left-0 w-full h-full overflow-hidden">
       <canvas
         ref="canvasRef"
         :width="canvasWidth"
@@ -292,10 +413,8 @@ watch([() => pixelStore.pixels.size, hoverX, hoverY], () => {
         @mouseup="handleMouseUp"
         @mousemove="handleMouseMove"
         @mouseleave="handleMouseLeave"
-        :class="[
-          'canvas-pixel max-w-full max-h-full object-contain rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-transform duration-100',
-          canvasCursor,
-        ]"
+        :class="['canvas-pixel w-full h-full', canvasCursor]"
+        style="image-rendering: pixelated; image-rendering: crisp-edges"
       />
     </div>
   </div>
