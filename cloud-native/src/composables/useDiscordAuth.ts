@@ -1,6 +1,6 @@
+import { fetchDiscordUser, type DiscordUser } from '@/services/discordApi'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchDiscordUser, type DiscordUser } from '@/services/discordApi'
 
 const user = ref<DiscordUser | null>(null)
 const token = ref<string | null>(null)

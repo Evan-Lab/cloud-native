@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 const isAuthenticated = ref(false)
 const user = ref<any>(null)
@@ -31,7 +31,7 @@ const localStorageData = computed(() => ({
   discord_token_type: tokenType.value,
   discord_token_expiry: tokenExpiry.value,
   discord_token_scope: tokenScope.value,
-  discord_user: user.value
+  discord_user: user.value,
 }))
 
 const logout = () => {
@@ -54,7 +54,7 @@ onMounted(() => {
 <template>
   <div class="debug-container">
     <h1 class="title">🔍 Debug Authentification Discord</h1>
-    
+
     <div class="card">
       <h2 class="section-title">Statut</h2>
       <div class="status-badge" :class="{ authenticated: isAuthenticated }">
@@ -83,7 +83,7 @@ onMounted(() => {
         </div>
         <div v-if="user?.avatar" class="info-item">
           <span class="label">Avatar:</span>
-          <img 
+          <img
             :src="`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`"
             alt="Avatar"
             class="avatar"
@@ -115,12 +115,8 @@ onMounted(() => {
         <button v-if="isAuthenticated" @click="logout" class="btn btn-danger">
           Se déconnecter
         </button>
-        <button @click="checkAuth" class="btn btn-secondary">
-          ♻️ Rafraîchir
-        </button>
-        <button @click="$router.push('/')" class="btn btn-secondary">
-          🏠 Accueil
-        </button>
+        <button @click="checkAuth" class="btn btn-secondary">♻️ Rafraîchir</button>
+        <button @click="$router.push('/')" class="btn btn-secondary">🏠 Accueil</button>
       </div>
     </div>
 
@@ -300,5 +296,3 @@ onMounted(() => {
   }
 }
 </style>
-
-

@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { fetchDiscordUserOAuth2 } from '@/services/discordApi'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchDiscordUserOAuth2 } from '@/services/discordApi'
 
 const router = useRouter()
 const status = ref<'loading' | 'success' | 'error'>('loading')
