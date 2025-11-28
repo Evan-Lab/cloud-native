@@ -13,16 +13,15 @@ import (
 )
 
 func init() {
-	RegisterCommand("snap", snapCmd)
+	RegisterCommand("pause", pauseCmd)
 }
 
-type SnapData struct {
-	CanvasID string `json:"canvas_id"`
-	AuthorID string `json:"author_id"`
+type PauseData struct {
+	CanvasID string `json:"canvasId"`
 }
 
-func snapCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
-	ctx, span := tracer.Start(ctx, "command.snap")
+func pauseCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
+	ctx, span := tracer.Start(ctx, "command.pause")
 	defer span.End()
 
 	client, err := PubSub()
@@ -31,32 +30,31 @@ func snapCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		return nil, err
 	}
 
-	publisher := client.Publisher("command.snap")
+	publisher := client.Publisher("session-events")
 	defer publisher.Stop()
 
-	payload := SnapData{
+	payload := PauseData{
 		CanvasID: interaction.GuildID + interaction.ChannelID,
-		AuthorID: interaction.Member.User.ID,
 	}
 
-	slog.DebugContext(ctx, "Snap payload", "payload", payload)
+	slog.DebugContext(ctx, "Pause payload", "payload", payload)
 	span.SetAttributes(
-		attribute.String("snap.canvas_id", payload.CanvasID),
-		attribute.String("snap.author_id", payload.AuthorID),
+		attribute.String("pause.canvas_id", payload.CanvasID),
 	)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to marshal snap payload", "error", err)
+		slog.ErrorContext(ctx, "Failed to marshal pause payload", "error", err)
 		return nil, err
 	}
-	slog.DebugContext(ctx, "Snap payload", "body", string(body))
+	slog.DebugContext(ctx, "Pause payload", "body", string(body))
 
 	msg := &pubsub.Message{
 		Data:       body,
 		Attributes: make(map[string]string),
 	}
 
+	msg.Attributes["action"] = "pause"
 	msg.Attributes["discord_interaction_token"] = interaction.Token
 
 	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(msg.Attributes))
@@ -68,12 +66,12 @@ func snapCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "Published snap message", "canvas_id", payload.CanvasID, "author_id", payload.AuthorID)
+	slog.InfoContext(ctx, "Published snap message", "canvas_id", payload.CanvasID)
 
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Taking snapshot... :camera_with_flash:",
+			Content: "Canvas start command received! Initializing...",
 		},
 	}, nil
 }

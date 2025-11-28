@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/bwmarrin/discordgo"
@@ -13,12 +14,19 @@ import (
 )
 
 func init() {
-	RegisterCommand("snap", snapCmd)
+	RegisterCommand("start", startCmd)
+	RegisterCommand("restart", startCmd)
+
 }
 
 type StartData struct {
-	CanvasID string `json:"canvas_id"`
-	AuthorID string `json:"author_id"`
+	CanvasID  string    `json:"canvasId"`
+	AdminID   string    `json:"adminId"`
+	Name      string    `json:"name"`
+	Width     int       `json:"width"`
+	Height    int       `json:"height"`
+	StartDate time.Time `json:"startDate"`
+	EndDate   time.Time `json:"endDate"`
 }
 
 func startCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
@@ -31,18 +39,24 @@ func startCmd(ctx context.Context, interaction discordgo.Interaction, data disco
 		return nil, err
 	}
 
-	publisher := client.Publisher("command.start")
+	publisher := client.Publisher("session-events")
 	defer publisher.Stop()
 
 	payload := StartData{
-		CanvasID: interaction.GuildID,
-		AuthorID: interaction.Member.User.ID,
+		CanvasID:  interaction.GuildID + interaction.ChannelID,
+		AdminID:   interaction.Member.User.ID,
+		Name:      interaction.Member.User.Username + "'s Canvas",
+		StartDate: time.Now(),
+		EndDate:   time.Now().Add(24 * time.Hour),
 	}
+
+	payload.Width = int(data.GetOption("width").IntValue())
+	payload.Height = int(data.GetOption("height").IntValue())
 
 	slog.DebugContext(ctx, "Start payload", "payload", payload)
 	span.SetAttributes(
 		attribute.String("start.canvas_id", payload.CanvasID),
-		attribute.String("start.author_id", payload.AuthorID),
+		attribute.String("start.author_id", payload.AdminID),
 	)
 
 	body, err := json.Marshal(payload)
@@ -57,6 +71,7 @@ func startCmd(ctx context.Context, interaction discordgo.Interaction, data disco
 		Attributes: make(map[string]string),
 	}
 
+	msg.Attributes["action"] = "start"
 	msg.Attributes["discord_interaction_token"] = interaction.Token
 
 	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(msg.Attributes))
@@ -68,12 +83,12 @@ func startCmd(ctx context.Context, interaction discordgo.Interaction, data disco
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "Published snap message", "canvas_id", payload.CanvasID, "author_id", payload.AuthorID)
+	slog.InfoContext(ctx, "Published snap message", "canvas_id", payload.CanvasID, "author_id", payload.AdminID)
 
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Taking snapshot... :camera_with_flash:",
+			Content: "Canvas start command received! Initializing...",
 		},
 	}, nil
 }

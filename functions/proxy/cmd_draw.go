@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/bwmarrin/discordgo"
@@ -14,12 +13,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
-var (
-	topicID string
-)
-
 func init() {
-	topicID = os.Getenv("DRAW_TOPIC_ID")
 	RegisterCommand("draw", drawCmd)
 }
 
@@ -41,11 +35,11 @@ func drawCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		return nil, err
 	}
 
-	publisher := client.Publisher(topicID)
+	publisher := client.Publisher("drawing-pixel")
 	defer publisher.Stop()
 
 	payload := DrawData{
-		CanvasID: interaction.GuildID,
+		CanvasID: interaction.GuildID + interaction.ChannelID,
 		AuthorID: interaction.Member.User.ID,
 	}
 
@@ -81,6 +75,9 @@ func drawCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		// Initialize the Attributes map if it doesn't exist
 		Attributes: make(map[string]string),
 	}
+
+	msg.Attributes["discord_interaction_token"] = interaction.Token
+
 	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(msg.Attributes))
 	result := publisher.Publish(ctx, msg)
 

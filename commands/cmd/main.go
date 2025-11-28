@@ -17,6 +17,10 @@ var cmds = []commandFunc{
 	commands.Hello,
 	commands.Draw,
 	commands.Snap,
+	commands.Start,
+	commands.Stop,
+	commands.Restart,
+	commands.Pause,
 }
 
 func createCommands(s *discordgo.Session, guildID string) error {
