@@ -71,6 +71,10 @@ const toggleColorPicker = () => {
 }
 
 const canvasCursor = computed(() => {
+  if (pixelStore.isOnCooldown && pixelStore.currentTool !== 'eyedropper') {
+    return 'cursor-not-allowed'
+  }
+
   switch (pixelStore.currentTool) {
     case 'brush':
       return 'cursor-crosshair'
@@ -159,6 +163,9 @@ const handleCanvasClick = (event: MouseEvent) => {
       console.log('Couleur:', color)
     }
   } else {
+    if (pixelStore.isOnCooldown) {
+      return
+    }
     pixelStore.placePixel(coords.x, coords.y)
   }
   drawGrid()
@@ -326,6 +333,30 @@ watch([() => pixelStore.pixels.size, hoverX, hoverY], () => {
             />
           </svg>
         </button>
+
+        <div class="w-px h-7 bg-white/15 mx-1"></div>
+
+        <div
+          v-if="pixelStore.isOnCooldown"
+          class="flex items-center gap-2 px-4 py-2 bg-bgray-500/20 border-2 border-bgray-500/50 rounded-lg"
+        >
+          <svg
+            class="w-5 h-5 text-gray-400 animate-pulse"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span class="text-orange-300 font-bold text-lg font-mono">
+            {{ pixelStore.cooldownRemaining }}s
+          </span>
+        </div>
 
         <div class="w-px h-7 bg-white/15 mx-1"></div>
 
