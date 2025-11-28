@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -224,20 +223,14 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	if projectID == "" {
-		slog.Error("Missing GOOGLE_CLOUD_PROJECT")
-		return nil
-	}
-
-	adminID, err := GetCanvasAdminID(ctx, input.CanvasID, "dev-rplace-database", projectID)
+	adminID, err := GetCanvasAdminID(ctx, input.CanvasID, databaseName, projectID)
 	if err != nil {
 		slog.Error("Failed to fetch adminId", "error", err)
 		return nil
 	}
 
 	if input.AuthorID != adminID {
-		t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID)
+		t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, databaseName, projectID)
 		if err == nil {
 			if elapsed := time.Since(t); elapsed < 35*time.Second {
 				slog.Warn("Cooldown not finished", "remaining", 35*time.Second-elapsed)
@@ -248,7 +241,7 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		slog.Info("Admin bypass: cooldown ignored", "adminId", adminID)
 	}
 
-	size, err := GetCanvasSize(ctx, "canvases", input.CanvasID, "dev-rplace-database", projectID)
+	size, err := GetCanvasSize(ctx, "canvases", input.CanvasID, databaseName, projectID)
 	if err != nil {
 		slog.Error("Canvas not found", "canvas_id", input.CanvasID)
 		return nil
@@ -259,7 +252,7 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
-	fs, err := firestore.NewClientWithDatabase(ctx, projectID, "dev-rplace-database")
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, databaseName)
 	if err != nil {
 		slog.Error("Firestore init failed", "error", err)
 		return err
@@ -286,7 +279,7 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		return err
 	}
 
-	if err := SaveLastPixelTime(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID, time.Now()); err != nil {
+	if err := SaveLastPixelTime(ctx, "rate_limits", input.AuthorID, databaseName, projectID, time.Now()); err != nil {
 		slog.Warn("Failed to update rate limit", "error", err)
 	}
 
