@@ -68,7 +68,7 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
-	fs, err := firestore.NewClientWithDatabase(ctx, projectID, "dev-rplace-database")
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, databaseName)
 	if err != nil {
 		slog.Error("Firestore init failed", "error", err)
 		return err
@@ -114,6 +114,14 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 
 	if _, err := docRef.Set(ctx, newCanvas); err != nil {
 		slog.Error("Failed to create canvas", "error", err)
+		return err
+	}
+
+	_, err = docRef.Collection("pixels").Doc("metadata").Set(ctx, map[string]interface{}{
+		"createdAt": time.Now(),
+	})
+	if err != nil {
+		slog.Error("Failed to create pixels collection", "canvasId", newCanvas.CanvasID, "error", err)
 		return err
 	}
 
