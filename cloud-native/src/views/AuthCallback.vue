@@ -8,10 +8,6 @@ const errorMessage = ref('')
 
 onMounted(async () => {
   try {
-    console.log('🔄 Récupération du token depuis les fragments d\'URL...')
-
-    // 🎯 IMPORTANT: Avec l'Implicit Grant, les données sont dans le fragment (#)
-    // Exemple: .../#access_token=xxx&token_type=Bearer&expires_in=604800&scope=identify
     const hash = window.location.hash.substring(1) // Enlever le '#'
     const params = new URLSearchParams(hash)
 
@@ -21,27 +17,24 @@ onMounted(async () => {
     const scope = params.get('scope')
 
     if (!accessToken) {
-      throw new Error('Token d\'accès manquant dans la réponse Discord')
+      throw new Error("Token d'accès manquant dans la réponse Discord")
     }
 
-    console.log('✅ Token reçu:', {
+    console.log('Token reçu:', {
       tokenType,
+      accessToken,
       expiresIn: `${expiresIn}s (${parseInt(expiresIn || '0') / 3600}h)`,
-      scope
+      scope,
     })
 
-    // Stocker le token
     localStorage.setItem('discord_token', accessToken)
     localStorage.setItem('discord_token_type', tokenType || 'Bearer')
-    localStorage.setItem('discord_token_expiry', String(Date.now() + (parseInt(expiresIn || '0') * 1000)))
+    localStorage.setItem(
+      'discord_token_expiry',
+      String(Date.now() + parseInt(expiresIn || '0') * 1000),
+    )
     localStorage.setItem('discord_token_scope', scope || '')
 
-    console.log('📡 Récupération des informations utilisateur...')
-    console.log('💡 Via proxy Vite: /api/discord/oauth2/@me -> https://discord.com/api/oauth2/@me')
-
-    // ⚠️ IMPORTANT: Discord ne supporte PAS CORS depuis le navigateur
-    // Solution: Utiliser le proxy Vite configuré dans vite.config.ts
-    // /api/discord/* -> https://discord.com/api/*
     const userResponse = await fetch('/api/discord/oauth2/@me', {
       headers: {
         Authorization: `${tokenType} ${accessToken}`,
@@ -54,39 +47,33 @@ onMounted(async () => {
     }
 
     const oauthData = await userResponse.json()
-    // L'endpoint OAuth2 retourne les données dans oauthData.user
     const userData = oauthData.user
 
-    console.log('✅ Profil utilisateur récupéré:', userData.username)
+    console.log('Profil utilisateur récupéré:', userData.username)
 
-    // Stocker les informations utilisateur
     localStorage.setItem('discord_user', JSON.stringify(userData))
 
-    // Émettre un événement pour notifier l'application
-    window.dispatchEvent(new CustomEvent('discord-auth-success', {
-      detail: { user: userData }
-    }))
+    window.dispatchEvent(
+      new CustomEvent('discord-auth-success', {
+        detail: { user: userData },
+      }),
+    )
 
     status.value = 'success'
 
-    // Récupérer la redirection sauvegardée
     const redirectPath = sessionStorage.getItem('auth_redirect') || '/'
     sessionStorage.removeItem('auth_redirect')
 
-    // Nettoyer l'URL (enlever le hash)
     window.history.replaceState({}, document.title, window.location.pathname)
 
-    // Rediriger vers la page d'accueil après 1 seconde
     setTimeout(() => {
       router.push(redirectPath)
     }, 1000)
-
   } catch (error) {
-    console.error('❌ Erreur lors de l\'authentification:', error)
+    console.error("Erreur lors de l'authentification:", error)
     status.value = 'error'
     errorMessage.value = error instanceof Error ? error.message : 'Une erreur est survenue'
 
-    // Rediriger vers la page de login après 3 secondes
     setTimeout(() => {
       router.push({ name: 'login' })
     }, 3000)
@@ -101,7 +88,6 @@ onMounted(async () => {
 
     <div class="callback-content">
       <div class="callback-card">
-        <!-- Loading -->
         <div v-if="status === 'loading'" class="status-section">
           <div class="spinner-container">
             <div class="spinner"></div>
@@ -110,22 +96,30 @@ onMounted(async () => {
           <p class="status-message">Récupération de votre profil Discord...</p>
         </div>
 
-        <!-- Success -->
         <div v-else-if="status === 'success'" class="status-section">
           <div class="success-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
           <h2 class="status-title success-text">Authentification réussie !</h2>
           <p class="status-message">Connexion établie avec succès</p>
         </div>
 
-        <!-- Error -->
         <div v-else-if="status === 'error'" class="status-section">
           <div class="error-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </div>
           <h2 class="status-title error-text">Échec de l'authentification</h2>
@@ -133,14 +127,13 @@ onMounted(async () => {
           <p class="status-redirect">Redirection vers la page de connexion...</p>
         </div>
 
-        <!-- Progress bar -->
         <div class="progress-bar">
           <div
             class="progress-fill"
             :class="{
               'progress-loading': status === 'loading',
               'progress-success': status === 'success',
-              'progress-error': status === 'error'
+              'progress-error': status === 'error',
             }"
           ></div>
         </div>
@@ -166,8 +159,9 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-  radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+  background:
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -289,7 +283,8 @@ onMounted(async () => {
 }
 
 @keyframes shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
   25% {
