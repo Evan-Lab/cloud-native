@@ -99,6 +99,36 @@ paths:
         '200':
           description: Snapshot URL returned
 
+  /web/api/discord/oauth2/@me:
+    get:
+      summary: Proxy pour récupérer les informations utilisateur Discord
+      operationId: discord-oauth2-me
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: User data returned
+        '401':
+          description: Invalid Discord Token
+
+  /web/api/discord/users/@me:
+    get:
+      summary: Proxy pour récupérer les informations utilisateur Discord (alternative)
+      operationId: discord-users-me
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: User data returned
+        '401':
+          description: Invalid Discord Token
+
 # Définition de sécurité basique (API Key ou Custom)
 # Note: GCP Gateway valide nativement JWT/Firebase/Auth0.
 # Avec un token opaque Discord (Implicit Grant), la validation finale se fera

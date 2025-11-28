@@ -7,9 +7,28 @@ const DISCORD_API_URL = 'https://discord.com/api/users/@me';
 
 export const webProxyRouter = async (req, res) => {
     try {
-        // --- 1. SÉCURITÉ UTILISATEUR (AUTHENTIFICATION DISCORD) ---
-        // Le header X-API-KEY a été vérifié par la Gateway (Couche 1)
+        const path = req.path;
+        const method = req.method;
+        console.log(`Routing request for path: ${path}, method: ${method}`);
 
+        // --- ROUTING POUR LES ENDPOINTS DISCORD (PROXY) ---
+        // Ces endpoints ne nécessitent pas de validation préalable, juste le token Discord
+        if ((path === '/web/api/discord/oauth2/@me' || path === '/web/api/discord/users/@me') && method === 'GET') {
+            const authHeader = req.headers['x-discord-token'] || req.headers['authorization'];
+
+            if (!authHeader) {
+                return res.status(401).json({ error: 'Unauthorized', message: 'Discord token missing' });
+            }
+
+            const accessToken = authHeader.startsWith('Bearer ')
+                ? authHeader.split(' ')[1]
+                : authHeader;
+
+            return await handleDiscordUserInfo(req, res, accessToken);
+        }
+
+        // --- ROUTING POUR LES AUTRES ENDPOINTS (NÉCESSITENT VALIDATION DISCORD) ---
+        // Le header X-API-KEY a été vérifié par la Gateway (Couche 1)
         const authHeader = req.headers['x-discord-token'];
 
         if (!authHeader) {
@@ -21,10 +40,8 @@ export const webProxyRouter = async (req, res) => {
         if (!accessToken) {
             return res.status(401).send('Unauthorized: Bearer token missing.');
         }
-        const authHeaderToSend = `Bearer ${accessToken}`;
 
-        console.log("DEBUG: Header sent to Discord:", authHeaderToSend);
-        // 1.1. Validation du jeton Discord (Couche 2)
+        // Validation du jeton Discord (Couche 2)
         const discordResponse = await fetch(DISCORD_API_URL, {
             headers: { authorization: `Bearer ${accessToken}` },
         });
@@ -43,11 +60,7 @@ export const webProxyRouter = async (req, res) => {
         const userData = await discordResponse.json();
         const userId = userData.id;
 
-        // --- 2. ROUTING INTERNE (Basé sur le chemin) ---
-        const path = req.path;
-        console.log(`Routing request for path: ${path}, method: ${req.method}`);
-        const method = req.method;
-
+        // Routing interne
         if (path === '/web/api/draw-pixel' && method === 'POST') {
             await handleDrawPixel(req, res, userId);
         }
@@ -140,4 +153,45 @@ const handleRetrieveSnapshot = (req, res) => {
         ok: true,
         snapshot_url: 'https://storage.googleapis.com/votre-bucket/latest-snapshot.png'
     });
+};
+
+/** Gère les appels proxy vers l'API Discord pour récupérer les infos utilisateur. */
+const handleDiscordUserInfo = async (req, res, accessToken) => {
+    try {
+        const discordResponse = await fetch(DISCORD_API_URL, {
+            headers: {
+                authorization: `Bearer ${accessToken}`,
+                'User-Agent': 'PixelPlace/1.0'
+            },
+        });
+
+        if (!discordResponse.ok) {
+            const errorBody = await discordResponse.text();
+            console.error(
+                "Discord API call failed. Status:",
+                discordResponse.status,
+                "Body:",
+                errorBody
+            );
+            return res.status(discordResponse.status).json({
+                error: 'Discord API Error',
+                message: errorBody || 'Failed to fetch user info'
+            });
+        }
+
+        const userData = await discordResponse.json();
+
+        // Retourne les données dans le format attendu par le frontend
+        // Le format peut varier selon l'endpoint appelé
+        if (req.path === '/web/api/discord/oauth2/@me') {
+            // Format pour AuthCallback.vue qui attend { user: {...} }
+            res.status(200).json({ user: userData });
+        } else {
+            // Format direct pour useDiscordAuth.ts
+            res.status(200).json(userData);
+        }
+    } catch (error) {
+        console.error("Error in handleDiscordUserInfo:", error);
+        res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    }
 };
