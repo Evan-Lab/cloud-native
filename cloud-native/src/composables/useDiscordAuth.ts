@@ -1,15 +1,6 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-
-export interface DiscordUser {
-  id: string
-  username: string
-  discriminator: string
-  avatar: string | null
-  email?: string
-  verified?: boolean
-  global_name?: string
-}
+import { fetchDiscordUser, type DiscordUser } from '@/services/discordApi'
 
 const user = ref<DiscordUser | null>(null)
 const token = ref<string | null>(null)
@@ -64,26 +55,15 @@ export function useDiscordAuth() {
     }
 
     try {
-      const response = await fetch('https://discord.com/api/users/@me', {
-        headers: {
-          Authorization: `${tokenType.value} ${token.value}`,
-        },
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          logout()
-          throw new Error('Token invalide ou expiré')
-        }
-        throw new Error('Erreur lors de la récupération du profil')
-      }
-
-      const userData = await response.json()
+      const userData = await fetchDiscordUser(token.value, tokenType.value)
       user.value = userData
       localStorage.setItem('discord_user', JSON.stringify(userData))
       return userData
     } catch (error) {
       console.error('❌ Erreur fetchUserProfile:', error)
+      if (error instanceof Error && error.message.includes('invalide')) {
+        logout()
+      }
       throw error
     }
   }
@@ -92,21 +72,11 @@ export function useDiscordAuth() {
     if (!token.value) return false
 
     try {
-      const response = await fetch('https://discord.com/api/users/@me', {
-        headers: {
-          Authorization: `${tokenType.value} ${token.value}`,
-        },
-      })
-
-      if (response.ok) {
-        return true
-      } else {
-        console.warn('⚠️ Token non valide')
-        logout()
-        return false
-      }
+      await fetchDiscordUser(token.value, tokenType.value)
+      return true
     } catch (error) {
-      console.error('❌ Erreur lors de la vérification du token:', error)
+      console.warn('⚠️ Token non valide')
+      logout()
       return false
     }
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchDiscordUserOAuth2 } from '@/services/discordApi'
 
 const router = useRouter()
 const status = ref<'loading' | 'success' | 'error'>('loading')
@@ -35,18 +36,7 @@ onMounted(async () => {
     )
     localStorage.setItem('discord_token_scope', scope || '')
 
-    const userResponse = await fetch('/api/discord/oauth2/@me', {
-      headers: {
-        Authorization: `${tokenType} ${accessToken}`,
-      },
-    })
-
-    if (!userResponse.ok) {
-      const errorData = await userResponse.json().catch(() => ({}))
-      throw new Error(errorData.message || 'Erreur lors de la récupération du profil')
-    }
-
-    const oauthData = await userResponse.json()
+    const oauthData = await fetchDiscordUserOAuth2(accessToken, tokenType || 'Bearer')
     const userData = oauthData.user
 
     localStorage.setItem('discord_user', JSON.stringify(userData))
