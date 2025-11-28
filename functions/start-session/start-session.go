@@ -117,14 +117,6 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 		return err
 	}
 
-	_, err = docRef.Collection("pixels").Doc("metadata").Set(ctx, map[string]interface{}{
-		"createdAt": time.Now(),
-	})
-	if err != nil {
-		slog.Error("Failed to create pixels collection", "canvasId", newCanvas.CanvasID, "error", err)
-		return err
-	}
-
 	slog.Info("Canvas created", "canvasId", newCanvas.CanvasID)
 	return nil
 }
