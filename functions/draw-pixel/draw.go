@@ -40,18 +40,18 @@ type PubSubMessage struct {
 	Attributes map[string]string `json:"attributes"`
 }
 
-func init() {
-	functions.CloudEvent("DrawPixel", DrawPixel)
-}
-
 type CanvasSize struct {
 	Width  int `firestore:"width"`
 	Height int `firestore:"height"`
 }
 
+func init() {
+	functions.CloudEvent("DrawPixel", DrawPixel)
+}
+
 func GetCanvasAdminID(ctx context.Context, canvasID string, database string, projectID string) (string, error) {
 	if projectID == "" {
-		return "", errors.New("GOOGLE_CLOUD_PROJECT missing")
+		return "", errors.New("projectID missing")
 	}
 	if database == "" {
 		return "", errors.New("database missing")
@@ -72,36 +72,48 @@ func GetCanvasAdminID(ctx context.Context, canvasID string, database string, pro
 	}
 
 	data := doc.Data()
-	if data == nil {
-		return "", errors.New("canvas document is empty")
-	}
-
-	slog.Info("Debug canvas doc", "data", doc.Data())
-
 	admin, ok := data["AdminID"]
 	if !ok {
-		return "", errors.New("AdminId missing or invalid")
+		return "", errors.New("AdminID missing")
 	}
 
 	return admin.(string), nil
 }
 
-func GetCanvasSize(ctx context.Context, collection string, canvasID string, database string, projectId string) (CanvasSize, error) {
-	var size CanvasSize
+func GetCanvasStatus(ctx context.Context, canvasID string, database string, projectID string) (string, error) {
 	if canvasID == "" {
-		return size, errors.New("canvasID is required")
-	}
-	if projectId == "" {
-		return size, errors.New("GOOGLE_CLOUD_PROJECT env var is required")
-	}
-	if database == "" {
-		return size, errors.New("projectId is required")
-	}
-	if collection == "" {
-		return size, errors.New("collection is required")
+		return "", errors.New("canvasID missing")
 	}
 
-	fs, err := firestore.NewClientWithDatabase(ctx, projectId, database)
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, database)
+	if err != nil {
+		return "", err
+	}
+	defer fs.Close()
+
+	doc, err := fs.Collection("canvases").Doc(canvasID).Get(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	data := doc.Data()
+	statusRaw, ok := data["Status"]
+	if !ok {
+		return "", errors.New("Status missing")
+	}
+
+	status, ok := statusRaw.(string)
+	if !ok {
+		return "", errors.New("Status invalid")
+	}
+
+	return status, nil
+}
+
+func GetCanvasSize(ctx context.Context, collection string, canvasID string, database string, projectID string) (CanvasSize, error) {
+	var size CanvasSize
+
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, database)
 	if err != nil {
 		return size, err
 	}
@@ -112,102 +124,60 @@ func GetCanvasSize(ctx context.Context, collection string, canvasID string, data
 		return size, err
 	}
 
-	if err := doc.DataTo(&size); err != nil {
-		return size, err
-	}
-
-	slog.Info("Canvas size fetched",
-		"canvasID", canvasID,
-		"width", size.Width,
-		"height", size.Height,
-	)
-
-	return size, nil
+	err = doc.DataTo(&size)
+	return size, err
 }
 
-func GetTimeLastPixel(ctx context.Context, collection string, authorId string, database string, projectId string) (time.Time, error) {
-	if projectId == "" {
-		return time.Time{}, errors.New("GOOGLE_CLOUD_PROJECT env var is required")
-	}
-	if database == "" {
-		return time.Time{}, errors.New("database is required")
-	}
-	if collection == "" {
-		return time.Time{}, errors.New("collection is required")
-	}
-	if authorId == "" {
-		return time.Time{}, errors.New("authorId is required")
-	}
-
-	fs, err := firestore.NewClientWithDatabase(ctx, projectId, database)
+func GetTimeLastPixel(ctx context.Context, collection string, authorId string, database string, projectID string) (time.Time, error) {
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, database)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to init Firestore: %w", err)
+		return time.Time{}, err
 	}
 	defer fs.Close()
 
 	doc, err := fs.Collection(collection).Doc(authorId).Get(ctx)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to read document: %w", err)
+		return time.Time{}, err
 	}
 
 	val, ok := doc.Data()["updatedAt"]
 	if !ok {
-		return time.Time{}, errors.New("field updatedAt not found in document")
+		return time.Time{}, errors.New("updatedAt missing")
 	}
 
-	timestamp, ok := val.(time.Time)
+	t, ok := val.(time.Time)
 	if !ok {
-		return time.Time{}, errors.New("updatedAt is not a valid timestamp")
+		return time.Time{}, errors.New("updatedAt invalid")
 	}
 
-	return timestamp, nil
+	return t, nil
 }
 
-func SaveLastPixelTime(ctx context.Context, collection string, authorId string, database string, projectId string, t time.Time) error {
-	if projectId == "" {
-		return errors.New("projectId is required")
-	}
-	if database == "" {
-		return errors.New("database is required")
-	}
-	if collection == "" {
-		return errors.New("collection is required")
-	}
-	if authorId == "" {
-		return errors.New("authorId is required")
-	}
-
-	fs, err := firestore.NewClientWithDatabase(ctx, projectId, database)
+func SaveLastPixelTime(ctx context.Context, collection string, authorId string, database string, projectID string, t time.Time) error {
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, database)
 	if err != nil {
-		return fmt.Errorf("failed to init Firestore: %w", err)
+		return err
 	}
 	defer fs.Close()
 
-	_, err = fs.Collection(collection).
-		Doc(authorId).
-		Set(ctx, map[string]interface{}{
-			"updatedAt": t,
-		})
+	_, err = fs.Collection(collection).Doc(authorId).Set(ctx, map[string]interface{}{
+		"updatedAt": t,
+	})
 
-	if err != nil {
-		return fmt.Errorf("failed to write rate limit: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 	var payload MessagePublishedData
 	if err := e.DataAs(&payload); err != nil {
-		slog.Error("Invalid CloudEvent payload", "error", err)
+		slog.Error("Invalid CloudEvent", "error", err)
 		return nil
 	}
 
 	msg := payload.Message
-
 	parentCtx := otel.GetTextMapPropagator().Extract(ctx, propagation.MapCarrier(msg.Attributes))
 	tracer := otel.Tracer("DrawPixel")
-	ctx, span := tracer.Start(parentCtx, "event")
+	ctx, span := tracer.Start(parentCtx, "draw-pixel")
 	defer span.End()
 
 	slog.Info("Message received", "data", string(msg.Data), "attributes", msg.Attributes)
@@ -223,27 +193,38 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
+	status, err := GetCanvasStatus(ctx, input.CanvasID, databaseName, projectID)
+	if err != nil {
+		slog.Error("Failed status fetch", "error", err)
+		return nil
+	}
+
+	if status != "START" {
+		slog.Warn("Canvas not in START state", "status", status)
+		return nil
+	}
+
 	adminID, err := GetCanvasAdminID(ctx, input.CanvasID, databaseName, projectID)
 	if err != nil {
-		slog.Error("Failed to fetch adminId", "error", err)
+		slog.Error("Failed adminId fetch", "error", err)
 		return nil
 	}
 
 	if input.AuthorID != adminID {
-		t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, databaseName, projectID)
+		last, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, databaseName, projectID)
 		if err == nil {
-			if elapsed := time.Since(t); elapsed < 35*time.Second {
+			if elapsed := time.Since(last); elapsed < 35*time.Second {
 				slog.Warn("Cooldown not finished", "remaining", 35*time.Second-elapsed)
 				return nil
 			}
 		}
 	} else {
-		slog.Info("Admin bypass: cooldown ignored", "adminId", adminID)
+		slog.Info("Admin bypass cooldown")
 	}
 
 	size, err := GetCanvasSize(ctx, "canvases", input.CanvasID, databaseName, projectID)
 	if err != nil {
-		slog.Error("Canvas not found", "canvas_id", input.CanvasID)
+		slog.Error("Canvas size error", "error", err)
 		return nil
 	}
 
@@ -254,7 +235,7 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 
 	fs, err := firestore.NewClientWithDatabase(ctx, projectID, databaseName)
 	if err != nil {
-		slog.Error("Firestore init failed", "error", err)
+		slog.Error("Firestore init fail", "error", err)
 		return err
 	}
 	defer fs.Close()
@@ -267,15 +248,13 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		Y:         input.Y,
 	}
 
-	docID := fmt.Sprintf("%d_%d", pixel.X, pixel.Y)
-	_, err = fs.Collection("canvases").
-		Doc(input.CanvasID).
-		Collection("pixels").
-		Doc(docID).
-		Set(ctx, pixel)
+	docID := fmt.Sprintf("%d_%d", input.X, input.Y)
+
+	_, err = fs.Collection("canvases").Doc(input.CanvasID).
+		Collection("pixels").Doc(docID).Set(ctx, pixel)
 
 	if err != nil {
-		slog.Error("Failed to write pixel", "error", err)
+		slog.Error("Pixel write failed", "error", err)
 		return err
 	}
 
@@ -283,6 +262,6 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		slog.Warn("Failed to update rate limit", "error", err)
 	}
 
-	slog.Info("Pixel written", "canvas_id", input.CanvasID, "x", input.X, "y", input.Y)
+	slog.Info("Pixel written", "canvas", input.CanvasID, "x", input.X, "y", input.Y)
 	return nil
 }
