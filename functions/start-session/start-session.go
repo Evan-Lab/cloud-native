@@ -24,6 +24,7 @@ type PubSubMessage struct {
 
 type CanvasInput struct {
 	AdminID   string    `json:"adminId"`
+	CanvasID  string    `json:"canvasId"`
 	Name      string    `json:"name"`
 	Width     int       `json:"width"`
 	Height    int       `json:"height"`
@@ -33,7 +34,6 @@ type CanvasInput struct {
 
 type Canvas struct {
 	AdminID   string    `json:"adminId"`
-	CanvasID  string    `json:"canvasId"`
 	Name      string    `json:"name"`
 	Width     int       `json:"width"`
 	Height    int       `json:"height"`
@@ -62,9 +62,24 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 
 	slog.Info("Message received", "data", string(msg.Data), "attributes", msg.Attributes)
 
-	var input Canvas
+	var input CanvasInput
 	if err := json.Unmarshal(msg.Data, &input); err != nil {
 		slog.Error("Invalid JSON", "raw", string(msg.Data))
+		return nil
+	}
+
+	if input.CanvasID == "" {
+		slog.Error("canvasId must be provided when creating a canvas")
+		return nil
+	}
+
+	if input.AdminID == "" || input.Name == "" || input.Width <= 0 || input.Height <= 0 {
+		slog.Error("Missing required fields", "input", input)
+		return nil
+	}
+
+	if input.StartDate.IsZero() {
+		slog.Error("startDate must be provided when creating a canvas")
 		return nil
 	}
 
@@ -75,48 +90,22 @@ func StartSession(ctx context.Context, e cloudevents.Event) error {
 	}
 	defer fs.Close()
 
-	status := "START"
-
-	if input.CanvasID != "" {
-
-		doc := fs.Collection("canvases").Doc(input.CanvasID)
-
-		_, err := doc.Set(ctx, map[string]interface{}{
-			"Status": status,
-		}, firestore.MergeAll)
-
-		if err != nil {
-			slog.Error("Failed to update canvas", "canvasId", input.CanvasID, "error", err)
-			return err
-		}
-
-		slog.Info("Canvas updated", "canvasId", input.CanvasID)
-		return nil
-	}
-
-	if input.StartDate.IsZero() {
-		slog.Error("startDate must be provided when creating a canvas")
-		return nil
-	}
-
-	newCanvas := Canvas{
+	canvas := Canvas{
 		AdminID:   input.AdminID,
 		Name:      input.Name,
 		Width:     input.Width,
 		Height:    input.Height,
-		Status:    status,
+		Status:    "START",
 		StartDate: input.StartDate,
 		EndDate:   input.EndDate,
 	}
 
-	docRef := fs.Collection("canvases").NewDoc()
-	newCanvas.CanvasID = docRef.ID
-
-	if _, err := docRef.Set(ctx, newCanvas); err != nil {
-		slog.Error("Failed to create canvas", "error", err)
+	_, err = fs.Collection("canvases").Doc(input.CanvasID).Set(ctx, canvas)
+	if err != nil {
+		slog.Error("Failed to create canvas", "canvasId", input.CanvasID, "error", err)
 		return err
 	}
 
-	slog.Info("Canvas created", "canvasId", newCanvas.CanvasID)
+	slog.Info("Canvas created", "canvasId", input.CanvasID)
 	return nil
 }
