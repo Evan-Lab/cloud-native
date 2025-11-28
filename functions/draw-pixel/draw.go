@@ -50,6 +50,43 @@ type CanvasSize struct {
 	Height int `firestore:"height"`
 }
 
+func GetCanvasAdminID(ctx context.Context, canvasID string, database string, projectID string) (string, error) {
+	if projectID == "" {
+		return "", errors.New("GOOGLE_CLOUD_PROJECT missing")
+	}
+	if database == "" {
+		return "", errors.New("database missing")
+	}
+	if canvasID == "" {
+		return "", errors.New("canvasID missing")
+	}
+
+	fs, err := firestore.NewClientWithDatabase(ctx, projectID, database)
+	if err != nil {
+		return "", err
+	}
+	defer fs.Close()
+
+	doc, err := fs.Collection("canvases").Doc(canvasID).Get(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	data := doc.Data()
+	if data == nil {
+		return "", errors.New("canvas document is empty")
+	}
+
+	slog.Info("Debug canvas doc", "data", doc.Data())
+
+	admin, ok := data["AdminID"]
+	if !ok {
+		return "", errors.New("AdminId missing or invalid")
+	}
+
+	return admin.(string), nil
+}
+
 func GetCanvasSize(ctx context.Context, collection string, canvasID string, database string, projectId string) (CanvasSize, error) {
 	var size CanvasSize
 	if canvasID == "" {
@@ -193,12 +230,22 @@ func DrawPixel(ctx context.Context, e cloudevents.Event) error {
 		return nil
 	}
 
-	t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID)
-	if err == nil {
-		if elapsed := time.Since(t); elapsed < 35*time.Second {
-			slog.Warn("Cooldown not finished", "remaining", 35*time.Second-elapsed)
-			return nil
+	adminID, err := GetCanvasAdminID(ctx, input.CanvasID, "dev-rplace-database", projectID)
+	if err != nil {
+		slog.Error("Failed to fetch adminId", "error", err)
+		return nil
+	}
+
+	if input.AuthorID != adminID {
+		t, err := GetTimeLastPixel(ctx, "rate_limits", input.AuthorID, "dev-rplace-database", projectID)
+		if err == nil {
+			if elapsed := time.Since(t); elapsed < 35*time.Second {
+				slog.Warn("Cooldown not finished", "remaining", 35*time.Second-elapsed)
+				return nil
+			}
 		}
+	} else {
+		slog.Info("Admin bypass: cooldown ignored", "adminId", adminID)
 	}
 
 	size, err := GetCanvasSize(ctx, "canvases", input.CanvasID, "dev-rplace-database", projectID)
