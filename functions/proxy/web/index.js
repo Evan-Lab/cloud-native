@@ -1,7 +1,7 @@
 import { PubSub } from '@google-cloud/pubsub';
 
 const pubsub = new PubSub();
-const TOPIC_PIXEL_EVENTS = 'pixel-events';
+const TOPIC_PIXEL_EVENTS = 'drawing-pixel';
 const TOPIC_SESSION_EVENTS = 'session-events';
 const DISCORD_API_URL = 'https://discord.com/api/users/@me';
 
@@ -76,14 +76,14 @@ export const webProxyRouter = async (req, res) => {
 
 /** Gère l'événement /draw-pixel. */
 const handleDrawPixel = async (req, res, userId) => {
-    const { x, y, color } = req.body;
-    if (x === undefined || y === undefined || !color) {
+    const { x, y, color, canvasId } = req.body;
+    if (x === undefined || y === undefined || !color || !canvasId) {
         return res.status(400).send('Missing pixel data.');
     }
 
     // Publication de l'événement dans Pub/Sub
     await pubsub.topic(TOPIC_PIXEL_EVENTS).publishMessage({
-        json: { x, y, color, userId, timestamp: Date.now() }
+        json: { x, y, color, canvasId, authorId: userId, updatedAt: Date.now() }
     });
 
     res.status(200).json({ ok: true, message: 'Pixel event queued.' });
