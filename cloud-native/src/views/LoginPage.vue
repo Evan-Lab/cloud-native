@@ -2,7 +2,12 @@
 import { ref } from 'vue'
 
 const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || 'YOUR_DISCORD_CLIENT_ID'
-const REDIRECT_URL = import.meta.env.VITE_REDIRECT_URL || 'https://serverless-epitech-dev-476110.ew.r.appspot.com/auth/callback'
+const REDIRECT_URL = import.meta.env.VITE_REDIRECT_URL || import.meta.env.VITE_REDIRECT_URI || 'http://localhost:5173/auth/callback'
+
+// Vérification que les variables sont bien définies
+if (!import.meta.env.VITE_REDIRECT_URL && !import.meta.env.VITE_REDIRECT_URI) {
+  console.warn('⚠️ VITE_REDIRECT_URL ou VITE_REDIRECT_URI n\'est pas définie dans .env.local, utilisation de la valeur par défaut:', REDIRECT_URL)
+}
 
 const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?response_type=token&client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URL)}&scope=identify%20email`
 
