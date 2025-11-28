@@ -85,7 +85,6 @@ func uploadPng(ctx context.Context, bucket *storage.BucketHandle, canvasID strin
 	url, err := bucket.SignedURL(obj.ObjectName(), &storage.SignedURLOptions{
 		Method:      "GET",
 		Expires:     time.Now().Add(24 * time.Hour),
-		ContentType: "image/png",
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "bucket.SignedURL", "error", err)
@@ -133,7 +132,6 @@ func uploadPixels(ctx context.Context, bucket *storage.BucketHandle, canvasID st
 	url, err := bucket.SignedURL(obj.ObjectName(), &storage.SignedURLOptions{
 		Method:      "GET",
 		Expires:     time.Now().Add(24 * time.Hour),
-		ContentType: "application/gzip",
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "bucket.SignedURL", "error", err)

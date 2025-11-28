@@ -14,15 +14,15 @@ import (
 
 type Canvas struct {
 	ID      string `firestore:"-"`
-	AdminID string `firestore:"adminId"`
-	Name    string `firestore:"name"`
-	Status  string `firestore:"status"`
+	AdminID string `firestore:"AdminID"`
+	Name    string `firestore:"Name"`
+	Status  string `firestore:"Status"`
 
-	Height int `firestore:"height"`
-	Width  int `firestore:"width"`
+	Height int `firestore:"Height"`
+	Width  int `firestore:"Width"`
 
-	EndDate   time.Time `firestore:"endDate"`
-	StartDate time.Time `firestore:"startDate"`
+	EndDate   time.Time `firestore:"EndDate"`
+	StartDate time.Time `firestore:"StartDate"`
 }
 
 type Pixel struct {

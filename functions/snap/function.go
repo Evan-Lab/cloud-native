@@ -82,5 +82,16 @@ func SnapCmd(ctx context.Context, e event.Event) error {
 
 	slog.InfoContext(ctx, "Snapshot process completed successfully", "canvas_id", canvas.ID, "png_url", pngUrl, "pixels_url", pixelsUrl)
 
+	if interaction, ok := msg.Message.Attributes["discord_interaction_token"]; ok {
+		if err := RespondToInteraction(ctx, interaction, pngUrl); err != nil {
+			slog.ErrorContext(ctx, "RespondToInteraction", "error", err)
+			span.RecordError(err)
+			return fmt.Errorf("RespondToInteraction failed: %w", err)
+		}
+		slog.InfoContext(ctx, "Responded to Discord interaction", "canvas_id", canvas.ID)
+	} else {
+		slog.WarnContext(ctx, "No discord_interaction attribute found in Pub/Sub message")
+	}
+
 	return nil
 }

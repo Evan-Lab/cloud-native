@@ -23,9 +23,9 @@ func main() {
 	hostname := ""
 	if localOnly := os.Getenv("LOCAL_ONLY"); localOnly == "true" {
 		hostname = "127.0.0.1"
+		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		slog.SetDefault(logger)
 	}
-
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	slog.Info("Starting function host", "url", "http://"+hostname+":"+port, "host", hostname, "port", port)
 	if err := funcframework.StartHostPort(hostname, port); err != nil {

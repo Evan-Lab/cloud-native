@@ -16,13 +16,13 @@ func init() {
 	RegisterCommand("snap", snapCmd)
 }
 
-type SnapData struct {
+type StartData struct {
 	CanvasID string `json:"canvas_id"`
 	AuthorID string `json:"author_id"`
 }
 
-func snapCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
-	ctx, span := tracer.Start(ctx, "command.snap")
+func startCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
+	ctx, span := tracer.Start(ctx, "command.start")
 	defer span.End()
 
 	client, err := PubSub()
@@ -31,26 +31,26 @@ func snapCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		return nil, err
 	}
 
-	publisher := client.Publisher("command.snap")
+	publisher := client.Publisher("command.start")
 	defer publisher.Stop()
 
-	payload := SnapData{
+	payload := StartData{
 		CanvasID: interaction.GuildID,
 		AuthorID: interaction.Member.User.ID,
 	}
 
-	slog.DebugContext(ctx, "Snap payload", "payload", payload)
+	slog.DebugContext(ctx, "Start payload", "payload", payload)
 	span.SetAttributes(
-		attribute.String("snap.canvas_id", payload.CanvasID),
-		attribute.String("snap.author_id", payload.AuthorID),
+		attribute.String("start.canvas_id", payload.CanvasID),
+		attribute.String("start.author_id", payload.AuthorID),
 	)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to marshal snap payload", "error", err)
+		slog.ErrorContext(ctx, "Failed to marshal start payload", "error", err)
 		return nil, err
 	}
-	slog.DebugContext(ctx, "Snap payload", "body", string(body))
+	slog.DebugContext(ctx, "Start payload", "body", string(body))
 
 	msg := &pubsub.Message{
 		Data:       body,
