@@ -16,6 +16,7 @@ type commandFunc func(s *discordgo.Session, guildID string) (*discordgo.Applicat
 var cmds = []commandFunc{
 	commands.Hello,
 	commands.Draw,
+	commands.Snap,
 }
 
 func createCommands(s *discordgo.Session, guildID string) error {

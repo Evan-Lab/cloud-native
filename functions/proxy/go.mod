@@ -6,7 +6,6 @@ require (
 	github.com/Evan-Lab/cloud-native/lib/go v0.0.0-20251114144537-4a898f1e4fd0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/bwmarrin/discordgo v0.29.0
-	go.opentelemetry.io/contrib/propagators/autoprop v0.63.0
 )
 
 require (
@@ -14,10 +13,6 @@ require (
 	cloud.google.com/go/trace v1.11.6 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/propagators/aws v1.38.0 // indirect
-	go.opentelemetry.io/contrib/propagators/b3 v1.38.0 // indirect
-	go.opentelemetry.io/contrib/propagators/jaeger v1.38.0 // indirect
-	go.opentelemetry.io/contrib/propagators/ot v1.38.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
 )
 
@@ -60,7 +55,7 @@ require (
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
-	google.golang.org/api v0.249.0 // indirect
+	google.golang.org/api v0.249.0
 	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect

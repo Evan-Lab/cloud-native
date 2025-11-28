@@ -1,4 +1,4 @@
-package proxy
+package snap
 
 import (
 	"context"
@@ -19,11 +19,18 @@ import (
 
 func init() {
 	setupLogging()
-	_, err := setupOpenTelemetry(context.Background())
+	shutdown, err := setupOpenTelemetry(context.Background())
 	if err != nil {
 		slog.Error("Failed to set up OpenTelemetry", "error", err)
 		return
 	}
+	// Ensure OpenTelemetry is shut down properly on application exit.
+	go func() {
+		<-context.Background().Done()
+		if err := shutdown(context.Background()); err != nil {
+			slog.Error("Failed to shut down OpenTelemetry", "error", err)
+		}
+	}()
 }
 
 func setupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
@@ -49,7 +56,8 @@ func setupOpenTelemetry(ctx context.Context) (shutdown func(context.Context) err
 			propagation.Baggage{},
 		))
 	exporter, err := gtrace.New(
-		gtrace.WithTimeout(2*time.Second), // keep exports bounded
+		gtrace.WithProjectID(os.Getenv("GOOGLE_CLOUD_PROJECT")), // or leave empty to autodetect
+		gtrace.WithTimeout(2*time.Second),                       // keep exports bounded
 		gtrace.WithTraceClientOptions([]option.ClientOption{
 			option.WithTelemetryDisabled(),
 		}),

@@ -27,17 +27,17 @@ type DrawData struct {
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
 	Color    string `json:"color"`
-	CanvasID string `json:"canvas_id"`
-	AuthorID string `json:"author_id"`
+	AuthorID string `json:"authorId"`
+	CanvasID string `json:"canvasId"`
 }
 
 func drawCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
 	ctx, span := tracer.Start(ctx, "command.draw")
 	defer span.End()
 
-	client, err := pubsub.NewClient(ctx, projectID)
+	client, err := PubSub()
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to create Pub/Sub client", "error", err)
+		slog.ErrorContext(ctx, "Failed to get Pub/Sub client", "error", err)
 		return nil, err
 	}
 
@@ -90,7 +90,7 @@ func drawCmd(ctx context.Context, interaction discordgo.Interaction, data discor
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "Published draw message", "canvas_id", payload.CanvasID, "x", payload.X, "y", payload.Y, "color", payload.Color)
+	slog.InfoContext(ctx, "Published draw message", "canvas_id", payload.CanvasID, "x", payload.X, "y", payload.Y, "color", payload.Color, "author_id", payload.AuthorID)
 
 	return &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,

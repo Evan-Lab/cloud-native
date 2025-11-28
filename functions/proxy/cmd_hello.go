@@ -15,11 +15,7 @@ func init() {
 
 func helloCmd(ctx context.Context, interaction discordgo.Interaction, data discordgo.ApplicationCommandInteractionData) (*discordgo.InteractionResponse, error) {
 	ctx, span := tracer.Start(ctx, "discord.command.hello")
-	defer func() {
-		slog.Info("before span.End")
-		span.End()
-		slog.Info("after span.End")
-	}()
+	defer span.End()
 
 	name := "World"
 	if opt := data.GetOption("name"); opt != nil {
