@@ -22,6 +22,15 @@ paths:
           description: Invalid Signature
 
   /web/api/draw-pixel:
+    options:
+      summary: CORS preflight pour draw-pixel
+      operationId: draw-pixel-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     post:
       summary: Placer un pixel sur la toile (asynchrone)
       operationId: draw-pixel
@@ -35,6 +44,15 @@ paths:
           description: Event published to Pub/Sub
 
   /web/api/retrieve-canvas:
+    options:
+      summary: CORS preflight pour retrieve-canvas
+      operationId: retrieve-canvas-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     get:
       summary: Récupérer l'état actuel de la toile (synchrone)
       operationId: retrieve-canvas
@@ -48,6 +66,15 @@ paths:
           description: Canvas image or data returned
 
   /web/api/session/start:
+    options:
+      summary: CORS preflight pour session start
+      operationId: session-start-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     post:
       summary: Démarrer une session (administrateur)
       operationId: session-start
@@ -61,6 +88,15 @@ paths:
           description: Session started
 
   /web/api/session/pause:
+    options:
+      summary: CORS preflight pour session pause
+      operationId: session-pause-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     post:
       summary: Mettre en pause une session
       operationId: session-pause
@@ -74,6 +110,15 @@ paths:
           description: Session paused
 
   /web/api/session/reset:
+    options:
+      summary: CORS preflight pour session reset
+      operationId: session-reset-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     post:
       summary: Réinitialiser la toile
       operationId: session-reset
@@ -87,6 +132,15 @@ paths:
           description: Canvas reset
 
   /web/api/session/snapshot:
+    options:
+      summary: CORS preflight pour session snapshot
+      operationId: session-snapshot-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
     get:
       summary: Créer une capture d'écran
       operationId: session-snapshot
@@ -100,6 +154,22 @@ paths:
           description: Snapshot URL returned
 
   /web/api/discord/oauth2/@me:
+    options:
+      summary: CORS preflight pour discord oauth2
+      operationId: discord-oauth2-me-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
     get:
       summary: Proxy pour récupérer les informations utilisateur Discord
       operationId: discord-oauth2-me
@@ -111,10 +181,29 @@ paths:
       responses:
         '200':
           description: User data returned
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
         '401':
           description: Invalid Discord Token
 
   /web/api/discord/users/@me:
+    options:
+      summary: CORS preflight pour discord users
+      operationId: discord-users-me-cors
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight response
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
     get:
       summary: Proxy pour récupérer les informations utilisateur Discord (alternative)
       operationId: discord-users-me
@@ -126,6 +215,9 @@ paths:
       responses:
         '200':
           description: User data returned
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
         '401':
           description: Invalid Discord Token
 

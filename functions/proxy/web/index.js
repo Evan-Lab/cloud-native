@@ -7,6 +7,24 @@ const DISCORD_API_URL = 'https://discord.com/api/users/@me';
 
 export const webProxyRouter = async (req, res) => {
     try {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'https://serverless-epitech-dev-476110.ew.r.appspot.com'
+        ];
+
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
+
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-KEY, X-Discord-Token');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+        if (req.method === 'OPTIONS') {
+            return res.status(204).send('');
+        }
+
         const path = req.path;
         const method = req.method;
         console.log(`Routing request for path: ${path}, method: ${method}`);
