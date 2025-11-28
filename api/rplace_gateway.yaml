@@ -100,6 +100,15 @@ paths:
           description: Snapshot URL returned
 
   /web/api/discord/oauth2/@me:
+    options:
+      summary: CORS preflight pour Discord OAuth2
+      operationId: discord-oauth2-me-options
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight successful
     get:
       summary: Proxy pour récupérer les informations utilisateur Discord
       operationId: discord-oauth2-me
@@ -115,6 +124,15 @@ paths:
           description: Invalid Discord Token
 
   /web/api/discord/users/@me:
+    options:
+      summary: CORS preflight pour Discord users
+      operationId: discord-users-me-options
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: CORS preflight successful
     get:
       summary: Proxy pour récupérer les informations utilisateur Discord (alternative)
       operationId: discord-users-me

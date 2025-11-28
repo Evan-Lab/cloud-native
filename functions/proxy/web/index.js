@@ -5,11 +5,83 @@ const TOPIC_PIXEL_EVENTS = 'drawing-pixel';
 const TOPIC_SESSION_EVENTS = 'session-events';
 const DISCORD_API_URL = 'https://discord.com/api/users/@me';
 
+// Configuration CORS
+const setCorsHeaders = (res, origin) => {
+    // Liste des origines autorisées
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:4173',
+        'https://serverless-epitech-dev-476110.ew.r.appspot.com',
+        // Patterns pour App Engine (tous les projets .appspot.com)
+        /^https:\/\/.*\.appspot\.com$/,
+        /^https:\/\/.*\.ew\.r\.appspot\.com$/,
+        // Ajoutez d'autres origines de production si nécessaire
+    ];
+
+    // Vérifier si l'origine est autorisée
+    if (!origin) {
+        // Si pas d'origine (requête depuis le même domaine), autoriser
+        res.set('Access-Control-Allow-Origin', '*');
+    } else {
+        // Vérifier si l'origine correspond à un pattern ou est dans la liste
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (typeof allowed === 'string') {
+                return allowed === origin;
+            } else if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return false;
+        });
+        
+        if (isAllowed) {
+            res.set('Access-Control-Allow-Origin', origin);
+        } else {
+            // Pour le développement, on peut être plus permissif
+            // En production, vous devriez être plus restrictif
+            res.set('Access-Control-Allow-Origin', origin);
+        }
+    }
+
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-KEY, X-Discord-Token');
+    res.set('Access-Control-Max-Age', '3600');
+};
+
 export const webProxyRouter = async (req, res) => {
     try {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'https://serverless-epitech-dev-476110.ew.r.appspot.com'
+        ];
+
+        const origin = req.headers.origin;
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
+
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-KEY, X-Discord-Token');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+        if (req.method === 'OPTIONS') {
+            return res.status(204).send('');
+        }
+
         const path = req.path;
         const method = req.method;
-        console.log(`Routing request for path: ${path}, method: ${method}`);
+        const origin = req.headers.origin;
+        
+        console.log(`Routing request for path: ${path}, method: ${method}, origin: ${origin}`);
+
+        // Gérer les requêtes OPTIONS (preflight CORS)
+        if (method === 'OPTIONS') {
+            setCorsHeaders(res, origin);
+            return res.status(204).send('');
+        }
+
+        // Définir les headers CORS pour toutes les réponses
+        setCorsHeaders(res, origin);
 
         // --- ROUTING POUR LES ENDPOINTS DISCORD (PROXY) ---
         // Ces endpoints ne nécessitent pas de validation préalable, juste le token Discord
@@ -17,6 +89,7 @@ export const webProxyRouter = async (req, res) => {
             const authHeader = req.headers['x-discord-token'] || req.headers['authorization'];
 
             if (!authHeader) {
+                setCorsHeaders(res, origin);
                 return res.status(401).json({ error: 'Unauthorized', message: 'Discord token missing' });
             }
 
@@ -32,12 +105,14 @@ export const webProxyRouter = async (req, res) => {
         const authHeader = req.headers['x-discord-token'];
 
         if (!authHeader) {
+            setCorsHeaders(res, origin);
             return res.status(401).send('Unauthorized: X-Discord-Token missing.');
         }
 
         const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
         if (!accessToken) {
+            setCorsHeaders(res, origin);
             return res.status(401).send('Unauthorized: Bearer token missing.');
         }
 
@@ -54,6 +129,7 @@ export const webProxyRouter = async (req, res) => {
                 "Body:",
                 errorBody
             );
+            setCorsHeaders(res, origin);
             return res.status(401).send('Unauthorized: Invalid Discord Token.');
         }
 
@@ -74,11 +150,14 @@ export const webProxyRouter = async (req, res) => {
             handleRetrieveSnapshot(req, res);
         }
         else {
+            setCorsHeaders(res, origin);
             res.status(404).send('Not Found');
         }
 
     } catch (error) {
         console.error("Critical error in web proxy router:", error);
+        const origin = req.headers.origin;
+        setCorsHeaders(res, origin);
         res.status(500).send('Internal Server Error.');
     }
 };
@@ -173,6 +252,8 @@ const handleDiscordUserInfo = async (req, res, accessToken) => {
                 "Body:",
                 errorBody
             );
+            const origin = req.headers.origin;
+            setCorsHeaders(res, origin);
             return res.status(discordResponse.status).json({
                 error: 'Discord API Error',
                 message: errorBody || 'Failed to fetch user info'
@@ -180,7 +261,11 @@ const handleDiscordUserInfo = async (req, res, accessToken) => {
         }
 
         const userData = await discordResponse.json();
-
+        
+        // Définir les headers CORS
+        const origin = req.headers.origin;
+        setCorsHeaders(res, origin);
+        
         // Retourne les données dans le format attendu par le frontend
         // Le format peut varier selon l'endpoint appelé
         if (req.path === '/web/api/discord/oauth2/@me') {
@@ -192,6 +277,8 @@ const handleDiscordUserInfo = async (req, res, accessToken) => {
         }
     } catch (error) {
         console.error("Error in handleDiscordUserInfo:", error);
+        const origin = req.headers.origin;
+        setCorsHeaders(res, origin);
         res.status(500).json({ error: 'Internal Server Error', message: error.message });
     }
 };

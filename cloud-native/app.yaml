@@ -1,0 +1,16 @@
+runtime: nodejs22
+
+handlers:
+  - url: /assets
+    static_dir: dist/assets
+    secure: always
+
+  - url: /favicon.ico
+    static_files: dist/favicon.ico
+    upload: dist/favicon.ico
+    secure: always
+
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html
+    secure: always
