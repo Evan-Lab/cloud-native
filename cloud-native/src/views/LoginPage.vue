@@ -1,19 +1,25 @@
-
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// Configuration Discord OAuth2 - Implicit Grant
 const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || 'YOUR_DISCORD_CLIENT_ID'
-const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.origin}/auth/callback`
+const REDIRECT_URL =
+  import.meta.env.VITE_REDIRECT_URL ||
+  import.meta.env.VITE_REDIRECT_URI ||
+  'http://localhost:5173/auth/callback'
 
-// 🎯 CHANGEMENT IMPORTANT: response_type=token (au lieu de code)
-// Cela active l'Implicit Grant Flow de Discord
-const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?response_type=token&client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=identify%20email`
+// Vérification que les variables sont bien définies
+if (!import.meta.env.VITE_REDIRECT_URL && !import.meta.env.VITE_REDIRECT_URI) {
+  console.warn(
+    "⚠️ VITE_REDIRECT_URL ou VITE_REDIRECT_URI n'est pas définie dans .env.local, utilisation de la valeur par défaut:",
+    REDIRECT_URL,
+  )
+}
+
+const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?response_type=token&client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URL)}&scope=identify%20email`
 
 const isHovering = ref(false)
 
 const handleDiscordLogin = () => {
-  // Sauvegarder l'état pour la redirection post-auth
   sessionStorage.setItem('auth_redirect', window.location.pathname)
   window.location.href = DISCORD_OAUTH_URL
 }
@@ -26,59 +32,68 @@ const handleDiscordLogin = () => {
 
     <div class="login-content">
       <div class="login-card">
-        <!-- Logo et titre -->
         <div class="logo-section">
           <div class="logo-container">
             <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+              />
             </svg>
           </div>
           <h1 class="login-title">Pixel Place</h1>
           <p class="login-subtitle">Connectez-vous pour commencer à créer</p>
         </div>
 
-        <!-- Séparateur décoratif -->
         <div class="divider">
           <div class="divider-line"></div>
           <span class="divider-text">Bienvenue</span>
           <div class="divider-line"></div>
         </div>
 
-        <!-- Bouton Discord -->
         <button
           @click="handleDiscordLogin"
           @mouseenter="isHovering = true"
           @mouseleave="isHovering = false"
           class="discord-button"
-          :class="{ 'hovered': isHovering }"
+          :class="{ hovered: isHovering }"
         >
           <svg class="discord-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+            <path
+              d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"
+            />
           </svg>
           <span class="button-text">Se connecter avec Discord</span>
           <svg class="arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 7l5 5m0 0l-5 5m5-5H6"
+            />
           </svg>
         </button>
 
-        <!-- Information -->
         <div class="info-box">
           <svg class="info-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <p class="info-text">
-            Authentification sécurisée avec Discord
-          </p>
+          <p class="info-text">Authentification sécurisée avec Discord</p>
         </div>
 
-        <!-- Footer badge -->
         <div class="footer-badge">
           <span class="badge-icon">✨</span>
           <span>Inspiré de r/place</span>
         </div>
       </div>
 
-      <!-- Décoration -->
       <div class="decoration-circles">
         <div class="circle circle-1"></div>
         <div class="circle circle-2"></div>
@@ -89,7 +104,6 @@ const handleDiscordLogin = () => {
 </template>
 
 <style scoped>
-/* ... tous les styles existants restent identiques ... */
 .login-container {
   min-height: 100vh;
   position: relative;
@@ -106,8 +120,9 @@ const handleDiscordLogin = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-  radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+  background:
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -174,7 +189,8 @@ const handleDiscordLogin = () => {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
     transform: scale(1);
   }
@@ -307,7 +323,8 @@ const handleDiscordLogin = () => {
 }
 
 @keyframes pulse-subtle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -350,7 +367,8 @@ const handleDiscordLogin = () => {
 }
 
 @keyframes sparkle {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1) rotate(0deg);
   }
   25% {
@@ -406,7 +424,8 @@ const handleDiscordLogin = () => {
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
   }
   33% {

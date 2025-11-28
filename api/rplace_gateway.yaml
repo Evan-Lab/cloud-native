@@ -1,0 +1,140 @@
+swagger: '2.0'
+info:
+  title: rplace API
+  description: API Gateway pour le projet rplace
+  version: 1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /discord/interactions:
+    post:
+      summary: Point d'entrée pour les Webhooks Discord
+      operationId: discord-interactions
+      x-google-backend:
+        address: https://discord-proxy-458258130383.europe-west1.run.app
+        deadline: 3.0
+      responses:
+        '200':
+          description: Acknowledge sent
+        '401':
+          description: Invalid Signature
+
+  /web/api/draw-pixel:
+    post:
+      summary: Placer un pixel sur la toile (asynchrone)
+      operationId: draw-pixel
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Event published to Pub/Sub
+
+  /web/api/retrieve-canvas:
+    get:
+      summary: Récupérer l'état actuel de la toile (synchrone)
+      operationId: retrieve-canvas
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Canvas image or data returned
+
+  /web/api/session/start:
+    post:
+      summary: Démarrer une session (administrateur)
+      operationId: session-start
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Session started
+
+  /web/api/session/pause:
+    post:
+      summary: Mettre en pause une session
+      operationId: session-pause
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Session paused
+
+  /web/api/session/reset:
+    post:
+      summary: Réinitialiser la toile
+      operationId: session-reset
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Canvas reset
+
+  /web/api/session/snapshot:
+    get:
+      summary: Créer une capture d'écran
+      operationId: session-snapshot
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: Snapshot URL returned
+
+  /web/api/discord/oauth2/@me:
+    get:
+      summary: Proxy pour récupérer les informations utilisateur Discord
+      operationId: discord-oauth2-me
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: User data returned
+        '401':
+          description: Invalid Discord Token
+
+  /web/api/discord/users/@me:
+    get:
+      summary: Proxy pour récupérer les informations utilisateur Discord (alternative)
+      operationId: discord-users-me
+      security:
+        - api_key: []
+      x-google-backend:
+        address: https://web-proxy2-458258130383.europe-west1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: User data returned
+        '401':
+          description: Invalid Discord Token
+
+# Définition de sécurité basique (API Key ou Custom)
+# Note: GCP Gateway valide nativement JWT/Firebase/Auth0.
+# Avec un token opaque Discord (Implicit Grant), la validation finale se fera
+# souvent dans le proxy, mais on définit ici que l'endpoint est sécurisé.
+securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "X-API-KEY"
+    in: "header"

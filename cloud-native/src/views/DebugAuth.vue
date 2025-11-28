@@ -1,26 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 const isAuthenticated = ref(false)
 const user = ref<any>(null)
 const token = ref<string | null>(null)
 const tokenExpiry = ref<string | null>(null)
+const tokenType = ref<string | null>(null)
+const tokenScope = ref<string | null>(null)
 
 const checkAuth = () => {
   token.value = localStorage.getItem('discord_token')
+  tokenType.value = localStorage.getItem('discord_token_type')
+  tokenScope.value = localStorage.getItem('discord_token_scope')
   const userStr = localStorage.getItem('discord_user')
   const expiry = localStorage.getItem('discord_token_expiry')
-  
+
   if (userStr) {
     user.value = JSON.parse(userStr)
     isAuthenticated.value = true
   }
-  
+
   if (expiry) {
     const expiryDate = new Date(parseInt(expiry))
     tokenExpiry.value = expiryDate.toLocaleString('fr-FR')
   }
 }
+
+const localStorageData = computed(() => ({
+  discord_token: token.value?.substring(0, 30) + '...',
+  discord_token_type: tokenType.value,
+  discord_token_expiry: tokenExpiry.value,
+  discord_token_scope: tokenScope.value,
+  discord_user: user.value,
+}))
 
 const logout = () => {
   localStorage.removeItem('discord_token')
@@ -42,7 +54,7 @@ onMounted(() => {
 <template>
   <div class="debug-container">
     <h1 class="title">🔍 Debug Authentification Discord</h1>
-    
+
     <div class="card">
       <h2 class="section-title">Statut</h2>
       <div class="status-badge" :class="{ authenticated: isAuthenticated }">
@@ -71,7 +83,7 @@ onMounted(() => {
         </div>
         <div v-if="user?.avatar" class="info-item">
           <span class="label">Avatar:</span>
-          <img 
+          <img
             :src="`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`"
             alt="Avatar"
             class="avatar"
@@ -103,24 +115,14 @@ onMounted(() => {
         <button v-if="isAuthenticated" @click="logout" class="btn btn-danger">
           Se déconnecter
         </button>
-        <button @click="checkAuth" class="btn btn-secondary">
-          ♻️ Rafraîchir
-        </button>
-        <button @click="$router.push('/')" class="btn btn-secondary">
-          🏠 Accueil
-        </button>
+        <button @click="checkAuth" class="btn btn-secondary">♻️ Rafraîchir</button>
+        <button @click="$router.push('/')" class="btn btn-secondary">🏠 Accueil</button>
       </div>
     </div>
 
     <div v-if="isAuthenticated" class="card">
       <h2 class="section-title">📦 localStorage</h2>
-      <pre class="code-block">{{ {
-  discord_token: localStorage.getItem('discord_token')?.substring(0, 30) + '...',
-  discord_token_type: localStorage.getItem('discord_token_type'),
-  discord_token_expiry: localStorage.getItem('discord_token_expiry'),
-  discord_token_scope: localStorage.getItem('discord_token_scope'),
-  discord_user: JSON.parse(localStorage.getItem('discord_user') || '{}')
-} }}</pre>
+      <pre class="code-block">{{ localStorageData }}</pre>
     </div>
   </div>
 </template>
@@ -294,5 +296,3 @@ onMounted(() => {
   }
 }
 </style>
-
-
