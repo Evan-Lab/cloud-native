@@ -4,12 +4,18 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 const CANVAS_ID = 'zGYJpT1GTkWY95li4q0q'
+const COOLDOWN_DURATION = 35 // secondes
 
 export const usePixelStore = defineStore('pixel', () => {
   const pixels = ref<Map<string, PixelColor>>(new Map())
   const selectedColor = ref<PixelColor>(PixelColor.RED)
   const currentTool = ref<Tool>('brush')
+  const cooldownRemaining = ref<number>(0)
+  const isOnCooldown = computed(() => cooldownRemaining.value > 0)
+
   const getPixelKey = (x: number, y: number): string => `${x},${y}`
+
+  let cooldownInterval: number | null = null
 
   const gridWidth = computed(() => GRID_WIDTH)
   const gridHeight = computed(() => GRID_HEIGHT)
@@ -38,13 +44,40 @@ export const usePixelStore = defineStore('pixel', () => {
     currentTool.value = tool
   }
 
+  const startCooldown = () => {
+    cooldownRemaining.value = COOLDOWN_DURATION
+
+    if (cooldownInterval !== null) {
+      clearInterval(cooldownInterval)
+    }
+
+    cooldownInterval = window.setInterval(() => {
+      cooldownRemaining.value -= 1
+
+      if (cooldownRemaining.value <= 0) {
+        cooldownRemaining.value = 0
+        if (cooldownInterval !== null) {
+          clearInterval(cooldownInterval)
+          cooldownInterval = null
+        }
+      }
+    }, 1000)
+  }
+
   const placePixel = async (x: number, y: number) => {
+    if (isOnCooldown.value) {
+      console.warn(`⏱️ Cooldown actif: ${cooldownRemaining.value}s restantes`)
+      return
+    }
+
     const color = currentTool.value === 'eraser' ? DEFAULT_COLOR : selectedColor.value
 
     setPixel(x, y, color)
 
     try {
       await sendPixelToServer(x, y)
+      startCooldown()
+      console.log(`⏱️ Cooldown démarré: ${COOLDOWN_DURATION}s`)
     } catch (error) {
       console.error('Erreur placement pixel:', error)
     }
@@ -103,6 +136,8 @@ export const usePixelStore = defineStore('pixel', () => {
     pixels,
     selectedColor,
     currentTool,
+    cooldownRemaining,
+    isOnCooldown,
     gridWidth,
     gridHeight,
     totalPixelsPlaced,

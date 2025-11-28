@@ -49,8 +49,6 @@ onMounted(async () => {
     const oauthData = await userResponse.json()
     const userData = oauthData.user
 
-    console.log('Profil utilisateur récupéré:', userData.username)
-
     localStorage.setItem('discord_user', JSON.stringify(userData))
 
     window.dispatchEvent(
